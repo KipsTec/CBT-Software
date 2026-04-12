@@ -885,11 +885,12 @@ pointer-events:none;}
     <div class="modal-body">
       <div class="form-group"><label class="form-label">Assign to School</label><input class="form-control" id="keySchoolName" placeholder="Exact school name"/></div>
       <div class="form-group"><label class="form-label">License Type</label>
-        <select class="form-control" id="keyType">
-          <option value="annual">Annual (1 Year)</option>
-          <option value="lifetime">Lifetime</option>
-          <option value="trial">Trial (30 Days)</option>
-        </select>
+        <select class="form-control"  id="keyType">
+  <option value="trial">Trial (30 days)</option>
+  <option value="term">1 Term (3 months)</option>
+  <option value="year">1 Year</option>
+  <option value="lifetime">Lifetime</option>
+</select>
       </div>
       <div class="form-group"><label class="form-label">Custom Key (optional)</label><input class="form-control license-key-input" id="customKey" placeholder="Auto-generated if blank" style="letter-spacing:2px;font-size:14px;"/></div>
       <div class="alert alert-info" id="generatedKeyPreview" style="display:none;"><strong>Generated Key:</strong><br/><span id="generatedKeyText" style="font-family:monospace;font-size:15px;letter-spacing:2px;font-weight:700;"></span></div>
@@ -1501,15 +1502,26 @@ async function createLicenseKey(){
 
   const key=custom||generateKey();
   const now=new Date();
-  let expiresAt=null;
+  let expiresAt = null;
 
-  if(type==='annual'){
-    const exp=new Date(now);exp.setFullYear(exp.getFullYear()+1);
-    expiresAt=exp.toISOString();
-  }else if(type==='trial'){
-    const exp=new Date(now);exp.setDate(exp.getDate()+30);
-    expiresAt=exp.toISOString();
-  }
+if(type === 'trial'){
+  const exp = new Date(now);
+  exp.setDate(exp.getDate() + 30);
+  expiresAt = exp.toISOString();
+
+}else if(type === 'term'){
+  const exp = new Date(now);
+  exp.setMonth(exp.getMonth() + 3);
+  expiresAt = exp.toISOString();
+
+}else if(type === 'year'){
+  const exp = new Date(now);
+  exp.setFullYear(exp.getFullYear() + 1);
+  expiresAt = exp.toISOString();
+
+}else if(type === 'lifetime'){
+  expiresAt = null;
+}
 
   const record = {
     key,
@@ -1526,14 +1538,15 @@ async function createLicenseKey(){
   if(error){toast('Failed',error.message,'error');return;}
 
   licenseKeys.push({
-    key:record.key,
-    schoolName:record.schoolname,
-    type:record.type,
-    status:record.status,
-    createdAt:record.createdat,
-    expiresAt:record.expiresat,
-    activatedAt:record.activatedat
-  });
+  key: record.key,
+  schoolName: record.schoolname,
+  type: record.type,
+  status: record.status,
+  school_id: record.school_id,   // 🔥 ADD THIS
+  createdAt: record.createdat,
+  expiresAt: record.expiresat,
+  activatedAt: record.activatedat
+});
 
   closeModal('createKeyModal');
   renderLicenseKeys();
@@ -1570,7 +1583,7 @@ async function activateLicense(){
     return;
   }
 
-  // 2. Block only revoked keys
+  // 2. Block revoked keys
   if(data.status === 'revoked'){
     msg.textContent = '❌ This license has been revoked.';
     msg.style.color = '#ef4444';
@@ -1584,26 +1597,52 @@ async function activateLicense(){
     return;
   }
 
-  // 4. Allow multiple activations ✅
+  // 4. Activate license (WITH ERROR HANDLING 🔥)
   const now = new Date().toISOString();
 
-  await SB.from('licensekeys')
+  const { error: updateError } = await SB.from('licensekeys')
     .update({ 
       status: 'active', 
       activatedat: now 
     })
     .eq('id', data.id);
 
-  // 5. Set school ID
+  if(updateError){
+    console.error('Update failed:', updateError);
+    msg.textContent = '❌ Activation failed: ' + updateError.message;
+    msg.style.color = '#ef4444';
+    return;
+  }
+
+  // 5. Refresh license keys (for dashboard)
+  const { data: allKeys } = await SB.from('licensekeys').select('*');
+
+  licenseKeys = (allKeys || []).map(k => ({
+    id: k.id,
+    key: k.key,
+    schoolName: k.schoolname,
+    type: k.type,
+    status: k.status,
+    school_id: k.school_id,
+    createdAt: k.createdat,
+    expiresAt: k.expiresat,
+    activatedAt: k.activatedat
+  }));
+
+  renderDevDashboard();
+  renderLicenseKeys();
+
+  // 6. Save school ID locally
   currentSchoolId = data.school_id;
   localStorage.setItem('school_id', data.school_id);
 
-  // 6. Save settings
+  // 7. Save app settings
   appSettings.schoolName = data.schoolname;
   appSettings.licenseKey = key;
   appSettings.licenseStatus = 'active';
   appSettings.licenseType = data.type;
   appSettings.activatedAt = now;
+  appSettings.expiresAt = data.expiresat;
 
   const { error: settingsErr } = await SB.from('settings').upsert([{
     id: data.school_id,
@@ -1618,8 +1657,12 @@ async function activateLicense(){
     console.error('Settings save failed:', settingsErr);
   }
 
+  // 8. Reload settings (VERY IMPORTANT)
+  await loadAppSettings();
+
   isDataLoaded = true;
 
+  // 9. Success UI
   msg.textContent = '✅ Activated! Login with admin/admin';
   msg.style.color = '#10b981';
 
@@ -1922,17 +1965,18 @@ function switchAuthTab(tab, el){
   document.getElementById('loginForm').classList.toggle('hidden', tab!=='login');
   document.getElementById('registerForm').classList.toggle('hidden', tab!=='register');
   
-  if(tab==='register'){
-    populateRegClasses();
-    const msg = document.getElementById('regMsg');
-    if(appSettings.licenseStatus !== 'active'){
-      msg.textContent = '⚠️ Registration works but you need an activated license to take exams.';
-      msg.style.color = '#f59e0b';
-    } else {
-      msg.textContent = '';
-    }
+if(tab==='register'){
+  populateRegClasses();
+  const msg = document.getElementById('regMsg');
+
+  if(!currentSchoolId){
+    msg.textContent = '⚠️ Registration works but you need an activated license to take exams.';
+    msg.style.color = '#f59e0b';
+  } else {
+    msg.textContent = '';
   }
 }
+} 
 
 function populateRegClasses(){
   const sel=document.getElementById('regClass');
@@ -2041,22 +2085,13 @@ async function doLogin(){
   }
 
   const savedSchoolId = localStorage.getItem('school_id');
-  if(!savedSchoolId){
-    msg.textContent='No school activated. Activate license first.';
-    return;
-  }
 
-  const { data: licCheck } = await SB.from('licensekeys')
-    .select('status, schoolname')
-    .eq('school_id', savedSchoolId)
-    .single();
+if(!savedSchoolId){
+  msg.textContent = 'Activate software first.';
+  return;
+}
 
-  if(!licCheck || licCheck.status !== 'used'){
-    msg.textContent='School license inactive. Contact KipsTec.';
-    return;
-  }
-
-  currentSchoolId = savedSchoolId;
+currentSchoolId = savedSchoolId;
 
   // ── ADMIN LOGIN ──
   if(user===appSettings.adminUser && pass===appSettings.adminPass){
@@ -2124,6 +2159,7 @@ function doLogout(){
   location.reload();
 }
 
+
 // ═══════════════════════════════════════
 //  DEVELOPER PANEL
 // ═══════════════════════════════════════
@@ -2145,9 +2181,15 @@ function showDevPage(page,navEl){
 }
 
 function renderDevDashboard(){
-  const active=licenseKeys.filter(k=>k.status==='used').length;
-  const unused=licenseKeys.filter(k=>k.status==='unused').length;
-  const schools=[...new Set(licenseKeys.filter(k=>k.status==='used').map(k=>k.schoolName))].length;
+  const active = licenseKeys.filter(k => k.status === 'active').length;
+
+const unused = licenseKeys.filter(k => k.status === 'unused').length;
+
+const schools = new Set(
+  licenseKeys
+    .filter(k => k.status === 'active')
+    .map(k => k.school_id)
+).size;
 
   document.getElementById('devStatsGrid').innerHTML=`
     <div class="stat-card"><div class="stat-icon orange">🔑</div><div><div class="stat-label">Total Keys</div><div class="stat-value">${licenseKeys.length}</div></div></div>
@@ -3233,14 +3275,16 @@ if(currentSchoolId){
 
 
   if(!currentSchoolId){
-    document.getElementById('licensePage').classList.remove('hidden');
-    // ✅ FIX 3: Setup developer tap gesture on license page
-    setupDevGesture();
-  } else {
-    document.getElementById('authPage').classList.remove('hidden');
-    applyBranding();
-    populateRegClasses();
-  }
+  showLicensePage();
+  setupDevGesture();   // ✅ keep it here
+  return;
+}
+
+// ✅ If activated, show login
+document.getElementById('authPage').classList.remove('hidden');
+applyBranding();
+populateRegClasses();
+  
 })();
 
 // Global bindings
