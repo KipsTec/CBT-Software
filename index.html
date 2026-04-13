@@ -17,6 +17,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f1f5f9;color:#1e293
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-thumb{background:#c7d2fe;border-radius:3px;}
 
+
 /* ── LAYOUT ── */
 .admin-shell{display:flex;min-height:100vh;}
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:199;}
@@ -1409,6 +1410,7 @@ async function verifyDevPin(){
   }
 }
 
+
 // ═══════════════════════════════════════
 //  LOAD APP SETTINGS (NEW - fixes license issue on reload)
 // ═══════════════════════════════════════
@@ -1601,11 +1603,12 @@ async function activateLicense(){
   const now = new Date().toISOString();
 
   const { error: updateError } = await SB.from('licensekeys')
-    .update({ 
-      status: 'active', 
-      activatedat: now 
-    })
-    .eq('id', data.id);
+  .update({ 
+    status: 'active',
+    activated: true,
+    activatedat: now 
+  })
+  .eq('id', data.id);
 
   if(updateError){
     console.error('Update failed:', updateError);
@@ -1695,15 +1698,12 @@ async function revokeKey(keyId){
 async function loadDB(){
   if(!currentSchoolId){
     console.warn('App not activated');
-
-    // Only show license page if it's not already visible
     document.getElementById('licensePage')?.classList.remove('hidden');
-
     return;
   }
 
   try{
-    const [setRes,stuRes,qRes,scRes,keyRes]=await Promise.all([
+    const [setRes, stuRes, qRes, scRes, keyRes] = await Promise.all([
       SB.from('settings').select('*').eq('school_id',currentSchoolId).single(),
       SB.from('students').select('*').eq('school_id',currentSchoolId),
       SB.from('questions').select('*').eq('school_id',currentSchoolId),
@@ -1711,14 +1711,28 @@ async function loadDB(){
       SB.from('licensekeys').select('*').eq('school_id',currentSchoolId)
     ]);
 
+    // 🔍 DIAGNOSTIC: Log what we got
+    console.log('LoadDB results:', {
+      settings: setRes.data ? 'found' : 'NOT FOUND',
+      students: stuRes.data?.length || 0,
+      questions: qRes.data?.length || 0,
+      scores: scRes.data?.length || 0,
+      errors: {set: setRes.error, stu: stuRes.error, q: qRes.error, sc: scRes.error}
+    });
+
+    if(setRes.error){
+      toast('Settings Error', setRes.error.message, 'error');
+      return;
+    }
+
     if(setRes.data){
       db.subjects = setRes.data.subjects || [];
       db.classLimits = setRes.data.classlimits || {};
       const s = setRes.data.appsettings || {};
-      Object.assign(appSettings,s);
+      Object.assign(appSettings, s);
 
       if(setRes.data.devconfig){
-        Object.assign(devConfig,setRes.data.devconfig);
+        Object.assign(devConfig, setRes.data.devconfig);
       }
     }
 
@@ -1732,36 +1746,39 @@ async function loadDB(){
     }));
 
     db.questions = (qRes.data || []).map(q => ({
-      id:q.id,
-      subjectId:q.subjectid,
-      question:q.question,
-      A:(q.options||[])[0]||'',
-      B:(q.options||[])[1]||'',
-      C:(q.options||[])[2]||'',
-      correct:q.answer
+      id: q.id,
+      school_id: q.school_id,
+      subjectId: q.subjectid,
+      question: q.question,
+      A: (q.options||[])[0] || '',
+      B: (q.options||[])[1] || '',
+      C: (q.options||[])[2] || '',
+      correct: q.answer
     }));
 
     db.scores = (scRes.data || []).map(s => ({
-      id:s.id,
-      studentId:s.studentid,
-      subjectId:s.subjectid,
-      subject:s.subject,
-      score:s.score,
-      totalMarks:s.totalmarks,
-      answers:s.answers || {},
-      questions:s.questions || [],
-      date:s.date || ''
+      id: s.id,
+      school_id: s.school_id,
+      studentId: s.studentid,
+      subjectId: s.subjectid,
+      subject: s.subject,
+      score: s.score,
+      totalMarks: s.totalmarks,
+      answers: s.answers || {},
+      questions: s.questions || [],
+      date: s.date || ''
     }));
 
     licenseKeys = (keyRes.data || []).map(k => ({
-      id:k.id,
-      key:k.key,
-      schoolName:k.schoolname,
-      type:k.type,
-      status:k.status,
-      createdAt:k.createdat,
-      expiresAt:k.expiresat,
-      activatedAt:k.activatedat
+      id: k.id,
+      key: k.key,
+      schoolName: k.schoolname,
+      type: k.type,
+      status: k.status,
+      school_id: k.school_id,
+      createdAt: k.createdat,
+      expiresAt: k.expiresat,
+      activatedAt: k.activatedat
     }));
 
     isDataLoaded = true;
@@ -1777,11 +1794,11 @@ async function loadStudentData(){
     showLicensePage();
     return;
   }
-
     
   try{
+    // 🔥 FIX: Removed .single() to prevent crashing from duplicate database rows
     const [setRes,qRes,scRes]=await Promise.all([
-      SB.from('settings').select('*').eq('school_id',currentSchoolId).single(),
+      SB.from('settings').select('*').eq('school_id',currentSchoolId),
       SB.from('questions').select('*').eq('school_id',currentSchoolId),
       SB.from('scores')
         .select('*')
@@ -1789,40 +1806,31 @@ async function loadStudentData(){
         .eq('studentid',currentUser.id)
     ]);
 
-    if(setRes.data){
-      db.subjects = setRes.data.subjects || [];
-      db.classLimits = setRes.data.classlimits || {};
-      const s = setRes.data.appsettings || {};
-      Object.assign(appSettings,s);
+    // 🔥 FIX: Safely grab the first row even if duplicates exist
+    if(setRes.data && setRes.data.length > 0){
+      const settingsRow = setRes.data[0];
+      db.subjects = settingsRow.subjects || [];
+      db.classLimits = settingsRow.classlimits || {};
+      Object.assign(appSettings, settingsRow.appsettings || {});
     }
 
     db.questions = (qRes.data || []).map(q => ({
-      id:q.id,
-      subjectId:q.subjectid,
-      question:q.question,
-      A:(q.options||[])[0]||'',
-      B:(q.options||[])[1]||'',
-      C:(q.options||[])[2]||'',
-      correct:q.answer
+      id: q.id, school_id: q.school_id, subjectId: q.subjectid,
+      question: q.question, A: (q.options||[])[0] || '', B: (q.options||[])[1] || '',
+      C: (q.options||[])[2] || '', correct: q.answer
     }));
 
     db.scores = (scRes.data || []).map(s => ({
-      id:s.id,
-      studentId:s.studentid,
-      subjectId:s.subjectid,
-      subject:s.subject,
-      score:s.score,
-      totalMarks:s.totalmarks,
-      answers:s.answers || {},
-      questions:s.questions || [],
-      date:s.date || ''
+      id: s.id, school_id: s.school_id, studentId: s.studentid,
+      subjectId: s.subjectid, subject: s.subject, score: s.score,
+      totalMarks: s.totalmarks, answers: s.answers || {},
+      questions: s.questions || [], date: s.date || ''
     }));
 
   }catch(err){
-    console.error('loadStudentData',err);
+    console.error('loadStudentData error:',err);
   }
 }
-
 
 
 // ═══════════════════════════════════════
@@ -1877,23 +1885,40 @@ async function commitScore(rec){
   return true;
 }
 
-async function commitQuestions() {
+async function commitQuestions(){
   if (!currentSchoolId || !isDataLoaded) return;
-  
-  await SB.from('questions').delete().eq('school_id', currentSchoolId);
-  
+
+  // 🔥 DELETE OLD
+  const { error: delErr } = await SB
+    .from('questions')
+    .delete()
+    .eq('school_id', currentSchoolId);
+
+  if(delErr){
+    toast('Delete failed', delErr.message, 'error');
+    return;
+  }
+
+  // 🔥 small delay (prevents race condition)
+  await new Promise(r => setTimeout(r, 100));
+
   if (db.questions.length > 0) {
+
     const toInsert = db.questions.map(q => ({
-      id: q.id,
+      id: q.id || uid(),
       school_id: currentSchoolId,
       subjectid: q.subjectId,
       question: q.question,
       options: [q.A, q.B, q.C],
       answer: q.correct
     }));
-    
+
     const { error } = await SB.from('questions').insert(toInsert);
-    if (error) toast('Question Save Failed', error.message, 'error');
+
+    if (error){
+      console.error(error);
+      toast('Question Save Failed', error.message, 'error');
+    }
   }
 }
 
@@ -2079,6 +2104,7 @@ async function doLogin(){
       activatedAt:k.activatedat
     }));
     
+await loadAllDevData();
     renderDevDashboard();
     renderLicenseKeys();
     return;
@@ -2159,6 +2185,31 @@ function doLogout(){
   location.reload();
 }
 
+// 🔥 NEW FUNCTION: Forces Dev Dashboard to grab data across ALL schools
+async function loadAllDevData() {
+  try {
+    const [stuRes, scRes, setRes] = await Promise.all([
+      SB.from('students').select('*'),
+      SB.from('scores').select('*'),
+      SB.from('settings').select('*')
+    ]);
+    
+    db.students = stuRes.data || [];
+    db.scores = scRes.data || [];
+    
+    let allSubjects = [];
+    (setRes.data || []).forEach(row => {
+      if (row.subjects && Array.isArray(row.subjects)) {
+        row.subjects.forEach(s => allSubjects.push({...s, school_id: row.school_id}));
+      }
+    });
+    db.subjects = allSubjects;
+    
+  } catch (err) {
+    console.error('Dev Data Load Error:', err);
+  }
+}
+
 
 // ═══════════════════════════════════════
 //  DEVELOPER PANEL
@@ -2198,16 +2249,43 @@ const schools = new Set(
     <div class="stat-card"><div class="stat-icon purple">🏫</div><div><div class="stat-label">Schools</div><div class="stat-value">${schools}</div></div></div>
     <div class="stat-card"><div class="stat-icon green">👥</div><div><div class="stat-label">Students</div><div class="stat-value">${db.students.length}</div></div></div>`;
 
-  const tbody=document.getElementById('devSchoolsTable');
-  if(tbody){
-    const activated=licenseKeys.filter(k=>k.status==='used');
-    tbody.innerHTML=activated.length?activated.map(k=>`<tr>
-      <td><strong>${esc(k.schoolName)}</strong></td>
-      <td><span class="badge ${k.status==='used'?'badge-green':'badge-gray'}">${k.status}</span></td>
-      <td>${db.students.length}</td>
-      <td>${db.scores.length}</td>
-    </tr>`).join(''):'<tr><td colspan="4"><div class="empty-state"><p>No schools yet</p></div></td></tr>';
-  }
+  const tbody = document.getElementById('devSchoolsTable');
+
+if(tbody){
+
+  // 🔥 Get only ACTIVE keys
+  const activeKeys = licenseKeys.filter(k => k.status === 'active');
+
+  // 🔥 Remove duplicates (1 school = 1 row)
+  const schools = [...new Map(
+    activeKeys.map(k => [k.school_id, k])
+  ).values()];
+
+  tbody.innerHTML = schools.length ? schools.map(k => {
+
+    // 🔥 Count per school (VERY IMPORTANT)
+    const studentCount = db.students.filter(s => s.school_id === k.school_id).length;
+    const examCount = db.scores.filter(sc => sc.school_id === k.school_id).length;
+
+    return `
+      <tr>
+        <td><strong>${esc(k.schoolName)}</strong></td>
+        <td><span class="badge badge-green">active</span></td>
+        <td>${studentCount}</td>
+        <td>${examCount}</td>
+      </tr>
+    `;
+    
+  }).join('') : `
+    <tr>
+      <td colspan="4">
+        <div class="empty-state">
+          <p>No schools yet</p>
+        </div>
+      </td>
+    </tr>
+  `;
+}
 
   const rkEl=document.getElementById('devRecentKeys');
   if(rkEl){
@@ -2245,7 +2323,10 @@ function renderLicenseKeys(){
 
 function renderDevSchools(){
   const tbody=document.getElementById('devSchoolsFullTable');if(!tbody)return;
-  const activated=licenseKeys.filter(k=>k.status==='used'||k.status==='revoked');
+  
+  // 🔥 FIX: Changed status === 'used' to status === 'active'
+  const activated=licenseKeys.filter(k=>k.status==='active'||k.status==='revoked');
+
   tbody.innerHTML=activated.length?[...activated].sort((a,b)=>new Date(b.activatedAt||b.createdAt)-new Date(a.activatedAt||a.createdAt)).map(k=>`<tr>
     <td>
       <strong>${esc(k.schoolName)}</strong>
@@ -2255,10 +2336,10 @@ function renderDevSchools(){
       <span class="badge ${k.type==='lifetime'?'badge-purple':k.type==='annual'?'badge-blue':'badge-orange'}">${k.type}</span>
       <div style="font-size:10px;color:#94a3b8;margin-top:2px;">${k.expiresAt?'Exp: '+new Date(k.expiresAt).toLocaleDateString():'Lifetime'}</div>
     </td>
-    <td><span class="badge ${k.status==='used'?'badge-green':'badge-red'}">${k.status}</span></td>
-    <td>${db.students.length}</td>
-    <td>${db.subjects.length}</td>
-    <td>${db.scores.length}</td>
+    <td><span class="badge ${k.status==='active'?'badge-green':'badge-red'}">${k.status}</span></td>
+    <td>${db.students.filter(s => s.school_id === k.school_id).length}</td>
+    <td>${db.subjects.filter(s => s.school_id === k.school_id).length}</td>
+    <td>${db.scores.filter(s => s.school_id === k.school_id).length}</td>
     <td>
       <button class="btn btn-warning btn-xs" onclick="openEditSchool('${k.schoolName}')">✏️ Edit</button>
       <button class="btn btn-danger btn-xs" onclick="confirmDeleteSchool('${k.id}','${esc(k.schoolName)}')" style="margin-top:4px;">🗑️ Delete</button>
@@ -2292,6 +2373,39 @@ function generateSchoolPackage(schoolName){
     4. Default Admin: admin/admin
   `;
   return {key, instructions: setupInstructions};
+}
+
+// 🔥 Downloads ALL students and scores for ALL schools for the Dev Dashboard
+async function loadDevData(){
+  try {
+    const [stuRes, scRes, keysRes] = await Promise.all([
+      SB.from('students').select('*'), // Downloads all students
+      SB.from('scores').select('*'),   // Downloads all scores
+      SB.from('licensekeys').select('*')
+    ]);
+
+    db.students = stuRes.data || [];
+    db.scores = scRes.data || [];
+
+    licenseKeys = (keysRes.data || []).map(k => ({
+      id: k.id,
+      key: k.key,
+      schoolName: k.schoolname,
+      type: k.type,
+      status: k.status,
+      school_id: k.school_id,
+      createdAt: k.createdat,
+      expiresAt: k.expiresat,
+      activatedAt: k.activatedat
+    }));
+
+    renderDevDashboard();
+    renderLicenseKeys();
+    renderDevSchools();
+
+  } catch(err) {
+    console.error("Developer fetch failed", err);
+  }
 }
 
 async function saveSchoolDetails(){
@@ -2354,9 +2468,10 @@ async function deleteSchoolCompletely(keyId, schoolName){
     );
 
     if(wipeData){
-      await SB.from('students').delete().neq('id','__x__');
-      await SB.from('scores').delete().neq('id','__x__');
-      await SB.from('questions').delete().neq('id','__x__');
+      // ✅ SAFE - Only deletes THIS school's data
+await SB.from('students').delete().eq('school_id', currentSchoolId);
+await SB.from('scores').delete().eq('school_id', currentSchoolId);
+await SB.from('questions').delete().eq('school_id', currentSchoolId);
       db.students  = [];
       db.scores    = [];
       db.questions = [];
@@ -2437,7 +2552,9 @@ async function changeDevCreds(){
 }
 
 async function devRefreshAll(){
-  await loadDB();renderDevDashboard();toast('Refreshed','','success');
+  await loadAllDevData(); // 🔥 Make refresh pull all data globally
+  renderDevDashboard();
+  toast('Refreshed','','success');
 }
 
 // ═══════════════════════════════════════
@@ -3020,9 +3137,9 @@ async function adminRefreshAll(){
 // ═══════════════════════════════════════
 function renderSubjectPicker(){
   const grid=document.getElementById('subjectGrid');
-  const subs = db.subjects.filter(
-  s => s.class === currentUser.class && s.isActive
-);
+    const subs = db.subjects.filter(
+    s => (s.class || '').trim() === (currentUser.class || '').trim() && s.isActive
+  );
   const icons=['📐','📖','🔬','🌍','💻','🎨','🏛️','⚗️','📊','🔤'];
   grid.innerHTML=subs.length?subs.map((s,i)=>{
     const done=db.scores.some(sc=>sc.studentId===currentUser.id&&sc.subjectId===s.id);
@@ -3196,7 +3313,8 @@ if(currentSchoolId){
           expiresAt:k.expiresat,
           activatedAt:k.activatedat
         }));
-
+        
+await loadAllDevData();
         renderDevDashboard();
         renderLicenseKeys();
         return;
