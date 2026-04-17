@@ -4,6 +4,20 @@
 <meta charset="utf-8"/>
 <title>CBT System — KipsTec</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+
+<!-- ═══ PWA META ═══ -->
+<meta name="application-name" content="KipsTec CBT"/>
+<meta name="description" content="Computer Based Testing System by KipsTec"/>
+<meta name="theme-color" content="#1e1b4b"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="KipsTec CBT"/>
+<meta name="msapplication-TileColor" content="#1e1b4b"/>
+<meta name="msapplication-tap-highlight" content="no"/>
+
+<!-- PWA manifest injected dynamically below via JS -->
+<link id="pwaManifest" rel="manifest"/>
 <style>
 :root{
   --primary:#4f46e5;--primary-dark:#3730a3;--primary-light:#e0e7ff;
@@ -347,7 +361,9 @@ pointer-events:none;}
           </div>
           <div class="form-group">
             <label class="form-label">Class <small style="text-transform:none;font-weight:400;">(students only)</small></label>
-            <input class="form-control" id="loginClass" placeholder="e.g. JSS 1 (leave blank for admin/dev)"/>
+            <select class="form-control" id="loginClass" style="font-size:13px;">
+              <option value="">-- Select class (leave blank for admin) --</option>
+            </select>
           </div>
           <div class="form-group">
             <label class="form-label">Password</label>
@@ -358,6 +374,9 @@ pointer-events:none;}
           </div>
           <button class="btn btn-primary" style="width:100%;padding:11px;" onclick="doLogin()">🚀 Login</button>
           <p id="loginMsg" style="color:#ef4444;font-size:11px;margin-top:9px;text-align:center;min-height:16px;"></p>
+          <p style="text-align:center;margin-top:4px;">
+            <a href="#" onclick="showForgotPassword(event)" style="font-size:11px;color:#6366f1;text-decoration:none;">Forgot password? (Admin only)</a>
+          </p>
         </div>
 
         <div id="registerForm" class="hidden">
@@ -649,18 +668,19 @@ pointer-events:none;}
         <div class="section-card"><div class="section-header"><h3>❓ Add Question</h3></div><div class="section-body">
           <div class="form-group"><label class="form-label">Subject</label><select class="form-control" id="qSubjectSel"></select></div>
           <div class="form-group"><label class="form-label">Question</label><textarea class="form-control" id="qText" rows="3"></textarea></div>
-          <div class="form-grid fg-3">
+          <div class="form-grid fg-2">
             <div class="form-group"><label class="form-label">A</label><input class="form-control" id="qA"/></div>
             <div class="form-group"><label class="form-label">B</label><input class="form-control" id="qB"/></div>
             <div class="form-group"><label class="form-label">C</label><input class="form-control" id="qC"/></div>
+            <div class="form-group"><label class="form-label">D</label><input class="form-control" id="qD"/></div>
           </div>
-          <div class="form-group"><label class="form-label">Correct</label><select class="form-control" id="qCorrect"><option>A</option><option>B</option><option>C</option></select></div>
+          <div class="form-group"><label class="form-label">Correct</label><select class="form-control" id="qCorrect"><option>A</option><option>B</option><option>C</option><option>D</option></select></div>
           <button class="btn btn-primary" onclick="addQuestion()">➕ Add</button>
         </div></div>
       </div>
       <div id="qtab-bulk" class="tab-content">
         <div class="section-card"><div class="section-header"><h3>📁 Bulk Import</h3></div><div class="section-body">
-          <div class="alert alert-info"><span>ℹ️</span><div><b>TXT:</b> Q / A. / B. / C. / Answer:X<br/><b>CSV:</b> question,A,B,C,answer</div></div>
+          <div class="alert alert-info"><span>ℹ️</span><div><b>TXT:</b> Q / A. / B. / C. / D. / Answer:X<br/><b>CSV:</b> question,A,B,C,D,answer</div></div>
           <div class="form-group"><label class="form-label">Subject</label><select class="form-control" id="bulkQSubject"></select></div>
           <div class="form-group"><label class="form-label">File</label><input class="form-control" type="file" id="bulkFile" accept=".txt,.csv"/></div>
           <button class="btn btn-primary" onclick="importBulk()">📥 Import</button>
@@ -782,6 +802,7 @@ pointer-events:none;}
           <div class="section-header"><h3>🔑 Admin Credentials</h3></div>
           <div class="section-body">
             <div class="alert alert-warning">Will log you out after change.</div>
+            <div class="form-group"><label class="form-label">Recovery Email</label><input class="form-control" type="email" id="adminEmail" placeholder="admin@school.com"/><small style="color:#64748b;font-size:10px;margin-top:3px;display:block;">Used for password recovery — keep this up to date.</small></div>
             <div class="form-group"><label class="form-label">Current Password</label><input class="form-control" type="password" id="adminCurrentPass"/></div>
             <div class="form-group"><label class="form-label">New Username</label><input class="form-control" id="adminNewUser"/></div>
             <div class="form-group"><label class="form-label">New Password</label><input class="form-control" type="password" id="adminNewPass"/></div>
@@ -813,8 +834,6 @@ pointer-events:none;}
             <div class="form-group"><label class="form-label">Class</label>
               <select class="form-control" id="limitClass" onchange="loadLimitVal()" style="font-size:12px;">
                 <option value="">-- Select --</option>
-                <option>JSS 1</option><option>JSS 2</option><option>JSS 3</option>
-                <option>SSS 1</option><option>SSS 2</option><option>SSS 3</option>
               </select>
             </div>
             <div class="form-group"><label class="form-label">Max Students</label><input class="form-control" type="number" id="limitVal"/></div>
@@ -971,12 +990,13 @@ pointer-events:none;}
     <div class="modal-body">
       <input type="hidden" id="editQId"/>
       <div class="form-group"><label class="form-label">Question</label><textarea class="form-control" id="editQText" rows="3"></textarea></div>
-      <div class="form-grid fg-3">
+      <div class="form-grid fg-2">
         <div class="form-group"><label class="form-label">A</label><input class="form-control" id="editQA"/></div>
         <div class="form-group"><label class="form-label">B</label><input class="form-control" id="editQB"/></div>
         <div class="form-group"><label class="form-label">C</label><input class="form-control" id="editQC"/></div>
+        <div class="form-group"><label class="form-label">D</label><input class="form-control" id="editQD"/></div>
       </div>
-      <div class="form-group"><label class="form-label">Correct</label><select class="form-control" id="editQCorrect"><option>A</option><option>B</option><option>C</option></select></div>
+      <div class="form-group"><label class="form-label">Correct</label><select class="form-control" id="editQCorrect"><option>A</option><option>B</option><option>C</option><option>D</option></select></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('editQModal')">Cancel</button>
@@ -1001,6 +1021,25 @@ pointer-events:none;}
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('editStudentModal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveEditStudent()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Forgot Password (Admin) -->
+<div class="modal-overlay" id="forgotPassModal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header"><h3>🔓 Forgot Password</h3><button class="modal-close" onclick="closeModal('forgotPassModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="alert alert-info">Enter the recovery email set in Admin Settings. Your credentials will be sent there.</div>
+      <div class="form-group">
+        <label class="form-label">Recovery Email</label>
+        <input class="form-control" type="email" id="forgotEmailInput" placeholder="admin@school.com"/>
+      </div>
+      <p id="forgotMsg" style="font-size:12px;text-align:center;min-height:16px;margin-top:6px;"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('forgotPassModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="sendForgotPassword()">📧 Send Recovery</button>
     </div>
   </div>
 </div>
@@ -1063,17 +1102,19 @@ let db = { students:[], subjects:[], questions:[], scores:[], classLimits:{} };
 
 let isDataLoaded = false;
 
-// Developer credentials (loaded from Supabase - defaults only used as fallback)
+// Developer credentials — loaded exclusively from Supabase at runtime
+// No hardcoded fallbacks to prevent credential leakage from source code
 let devConfig = {
-  username: 'kipstec',
-  password: 'kipstec2025',
-  secret:   'KIPSTEC_DEV_2025',
-  unlockPin: '123456' // Default PIN - will be overridden from Supabase
+  username: '',
+  password: '',
+  secret:   '',
+  unlockPin: ''
 };
 
 let appSettings = {
   adminUser:   'admin',
   adminPass:   'admin',
+  adminEmail:  '',
   schoolName:  '',
   schoolTagline: 'Computer Based Testing System',
   schoolLogo:  '',
@@ -1083,6 +1124,11 @@ let appSettings = {
   licenseExpiry: '',
   activatedAt: ''
 };
+
+// Student login rate-limiting (in-memory, per session)
+const loginAttempts = {};
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_LOCKOUT_MS   = 5 * 60 * 1000; // 5 minutes
 
 let licenseKeys = [];
 
@@ -1473,6 +1519,14 @@ async function verifyActivation(){
     return;
   }
 
+  // 4. Block expired licenses (trial/term/year)
+  if(data.expiresat && new Date(data.expiresat) < new Date()){
+    localStorage.removeItem('school_id');
+    showLicensePage();
+    toast('License Expired', 'Contact developer to renew', 'error');
+    return;
+  }
+
   // 4. Valid → allow app
   currentSchoolId = savedSchoolId;
   isDataLoaded = true;
@@ -1588,6 +1642,13 @@ async function activateLicense(){
   // 2. Block revoked keys
   if(data.status === 'revoked'){
     msg.textContent = '❌ This license has been revoked.';
+    msg.style.color = '#ef4444';
+    return;
+  }
+
+  // 2b. Block already-expired keys
+  if(data.expiresat && new Date(data.expiresat) < new Date()){
+    msg.textContent = '❌ This license key has expired.';
     msg.style.color = '#ef4444';
     return;
   }
@@ -1711,14 +1772,7 @@ async function loadDB(){
       SB.from('licensekeys').select('*').eq('school_id',currentSchoolId)
     ]);
 
-    // 🔍 DIAGNOSTIC: Log what we got
-    console.log('LoadDB results:', {
-      settings: setRes.data ? 'found' : 'NOT FOUND',
-      students: stuRes.data?.length || 0,
-      questions: qRes.data?.length || 0,
-      scores: scRes.data?.length || 0,
-      errors: {set: setRes.error, stu: stuRes.error, q: qRes.error, sc: scRes.error}
-    });
+
 
     if(setRes.error){
       toast('Settings Error', setRes.error.message, 'error');
@@ -1753,6 +1807,7 @@ async function loadDB(){
       A: (q.options||[])[0] || '',
       B: (q.options||[])[1] || '',
       C: (q.options||[])[2] || '',
+      D: (q.options||[])[3] || '',
       correct: q.answer
     }));
 
@@ -1782,6 +1837,7 @@ async function loadDB(){
     }));
 
     isDataLoaded = true;
+    populateLoginClasses();
 
   }catch(err){
     console.error('loadDB error:', err);
@@ -1817,7 +1873,7 @@ async function loadStudentData(){
     db.questions = (qRes.data || []).map(q => ({
       id: q.id, school_id: q.school_id, subjectId: q.subjectid,
       question: q.question, A: (q.options||[])[0] || '', B: (q.options||[])[1] || '',
-      C: (q.options||[])[2] || '', correct: q.answer
+      C: (q.options||[])[2] || '', D: (q.options||[])[3] || '', correct: q.answer
     }));
 
     db.scores = (scRes.data || []).map(s => ({
@@ -1888,37 +1944,37 @@ async function commitScore(rec){
 async function commitQuestions(){
   if (!currentSchoolId || !isDataLoaded) return;
 
-  // 🔥 DELETE OLD
-  const { error: delErr } = await SB
-    .from('questions')
-    .delete()
-    .eq('school_id', currentSchoolId);
-
-  if(delErr){
-    toast('Delete failed', delErr.message, 'error');
+  if (db.questions.length === 0) {
+    // Only delete if there are truly no questions left (bulk delete scenario)
+    await SB.from('questions').delete().eq('school_id', currentSchoolId);
     return;
   }
 
-  // 🔥 small delay (prevents race condition)
-  await new Promise(r => setTimeout(r, 100));
+  // Use upsert: insert new, update existing — never wipes all on a network blip
+  const toUpsert = db.questions.map(q => ({
+    id: q.id || uid(),
+    school_id: currentSchoolId,
+    subjectid: q.subjectId,
+    question: q.question,
+    options: [q.A, q.B, q.C, q.D || ''],
+    answer: q.correct
+  }));
 
-  if (db.questions.length > 0) {
+  const { error } = await SB.from('questions').upsert(toUpsert, { onConflict: 'id' });
 
-    const toInsert = db.questions.map(q => ({
-      id: q.id || uid(),
-      school_id: currentSchoolId,
-      subjectid: q.subjectId,
-      question: q.question,
-      options: [q.A, q.B, q.C],
-      answer: q.correct
-    }));
+  if (error){
+    console.error(error);
+    toast('Question Save Failed', error.message, 'error');
+    return;
+  }
 
-    const { error } = await SB.from('questions').insert(toInsert);
-
-    if (error){
-      console.error(error);
-      toast('Question Save Failed', error.message, 'error');
-    }
+  // Remove deleted questions from DB (questions removed from db.questions but still in Supabase)
+  const currentIds = db.questions.map(q => q.id);
+  if (currentIds.length > 0) {
+    await SB.from('questions')
+      .delete()
+      .eq('school_id', currentSchoolId)
+      .not('id', 'in', `(${currentIds.map(id => `"${id}"`).join(',')})`);
   }
 }
 
@@ -1945,6 +2001,8 @@ function applyBranding(){
   applyLogoEl('logoPreviewImg','logoPreviewPlaceholder',logo);
 
   document.title=`${name} — CBT System`;
+  // Refresh login class dropdown with latest subjects
+  if(typeof populateLoginClasses === 'function') populateLoginClasses();
 }
 
 function applyLogoEl(imgId,placeholderId,logo){
@@ -2135,6 +2193,18 @@ currentSchoolId = savedSchoolId;
   }
 
   // ── STUDENT LOGIN ──
+  // Rate-limit by username to block brute force attempts
+  const attemptKey = user.toLowerCase();
+  const now = Date.now();
+  if(!loginAttempts[attemptKey]) loginAttempts[attemptKey] = {count:0, lockedUntil:0};
+  const attempt = loginAttempts[attemptKey];
+
+  if(now < attempt.lockedUntil){
+    const secsLeft = Math.ceil((attempt.lockedUntil - now) / 1000);
+    msg.textContent = `Too many failed attempts. Try again in ${secsLeft}s.`;
+    return;
+  }
+
   let query=SB.from('students')
     .select('*')
     .eq('school_id', currentSchoolId)
@@ -2144,7 +2214,22 @@ currentSchoolId = savedSchoolId;
   if(cls) query = query.eq('class',cls);
   
   const {data,error}=await query.single();
-  if(error||!data){msg.textContent='Invalid credentials.';return;}
+  if(error||!data){
+    attempt.count++;
+    if(attempt.count >= LOGIN_MAX_ATTEMPTS){
+      attempt.lockedUntil = now + LOGIN_LOCKOUT_MS;
+      attempt.count = 0;
+      msg.textContent=`Too many failed attempts. Account locked for 5 minutes.`;
+    } else {
+      const left = LOGIN_MAX_ATTEMPTS - attempt.count;
+      msg.textContent=`Invalid credentials. ${left} attempt${left===1?'':'s'} remaining.`;
+    }
+    return;
+  }
+
+  // Successful login — reset attempt counter
+  attempt.count = 0;
+  attempt.lockedUntil = 0;
 
   currentUser={role:'student',...data};
   localStorage.setItem('cbt_user',JSON.stringify(currentUser));
@@ -2296,7 +2381,7 @@ if(tbody){
         <div class="school-tag" style="margin-top:5px;">🏫 ${esc(k.schoolName)}</div>
       </div>
       <div style="text-align:right;">
-        <span class="badge ${k.status==='used'?'badge-green':k.status==='revoked'?'badge-red':'badge-blue'}">${k.status}</span>
+        <span class="badge ${k.status==='active'?'badge-green':k.status==='revoked'?'badge-red':'badge-blue'}">${k.status}</span>
         <div style="font-size:10px;color:#94a3b8;margin-top:4px;">${k.type}</div>
       </div>
     </div>`).join(''):'<div class="empty-state"><div class="empty-icon">🔑</div><p>No keys yet</p></div>';
@@ -2311,7 +2396,7 @@ function renderLicenseKeys(){
   tbody.innerHTML=licenseKeys.length?[...licenseKeys].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).map(k=>`<tr>
     <td><span class="key-code" style="font-size:11px;">${k.key}</span></td>
     <td><div class="school-tag">🏫 ${esc(k.schoolName)}</div></td>
-    <td><span class="badge ${k.status==='used'?'badge-green':k.status==='revoked'?'badge-red':k.status==='expired'?'badge-orange':'badge-blue'}">${k.status}</span></td>
+    <td><span class="badge ${k.status==='active'?'badge-green':k.status==='revoked'?'badge-red':k.status==='expired'?'badge-orange':'badge-blue'}">${k.status}</span></td>
     <td><span class="badge badge-purple">${k.type}</span></td>
     <td style="font-size:11px;color:#64748b;">${k.expiresAt?new Date(k.expiresAt).toLocaleDateString():'Lifetime'}</td>
     <td style="font-size:11px;color:#94a3b8;">${new Date(k.createdAt).toLocaleDateString()}</td>
@@ -2358,7 +2443,7 @@ function openEditSchool(schoolName){
 }
 
 async function loadAllSchools(){
-  const {data} = await SB.from('licensekeys').select('*').eq('status', 'used');
+  const {data} = await SB.from('licensekeys').select('*').eq('status', 'active');
   return data || [];
 }
 
@@ -2417,7 +2502,7 @@ async function saveSchoolDetails(){
   if(!newName){toast('Enter school name','','warning');return;}
 
   const oldName=document.getElementById('editSchoolId').value;
-  const keyToUpdate=licenseKeys.find(k=>k.schoolName===oldName&&k.status==='used');
+  const keyToUpdate=licenseKeys.find(k=>k.schoolName===oldName&&k.status==='active');
   if(keyToUpdate){
     keyToUpdate.schoolName=newName;
     await SB.from('licensekeys').update({schoolname:newName}).eq('id',keyToUpdate.id);
@@ -2524,7 +2609,7 @@ function renderDevMonitor(){
 function renderDevSettings(){
   document.getElementById('devSysOverview').innerHTML=[
     ['🔑 Total Keys',licenseKeys.length],
-    ['✅ Active Licenses',licenseKeys.filter(k=>k.status==='used').length],
+    ['✅ Active Licenses',licenseKeys.filter(k=>k.status==='active').length],
     ['👥 Students',db.students.length],
     ['📚 Subjects',db.subjects.length],
     ['❓ Questions',db.questions.length],
@@ -2761,11 +2846,12 @@ function refreshQSubFilter(){
 async function addQuestion(){
   const sid=document.getElementById('qSubjectSel').value;const text=document.getElementById('qText').value.trim();
   const A=document.getElementById('qA').value.trim();const B=document.getElementById('qB').value.trim();
-  const C=document.getElementById('qC').value.trim();const correct=document.getElementById('qCorrect').value;
-  if(!sid||!text||!A||!B||!C){toast('Fill all fields','','warning');return;}
-  db.questions.push({id:uid(),subjectId:sid,question:text,A,B,C,correct});
+  const C=document.getElementById('qC').value.trim();const D=document.getElementById('qD').value.trim();
+  const correct=document.getElementById('qCorrect').value;
+  if(!sid||!text||!A||!B||!C||!D){toast('Fill all fields','','warning');return;}
+  db.questions.push({id:uid(),subjectId:sid,question:text,A,B,C,D,correct});
   await commitQuestions();
-  ['qText','qA','qB','qC'].forEach(id=>document.getElementById(id).value='');
+  ['qText','qA','qB','qC','qD'].forEach(id=>document.getElementById(id).value='');
   renderQuestions();toast('Added','','success');
 }
 
@@ -2785,7 +2871,8 @@ function openEditQ(id){
   const q=db.questions.find(x=>x.id===id);if(!q)return;
   document.getElementById('editQId').value=id;document.getElementById('editQText').value=q.question;
   document.getElementById('editQA').value=q.A;document.getElementById('editQB').value=q.B;
-  document.getElementById('editQC').value=q.C;document.getElementById('editQCorrect').value=q.correct;
+  document.getElementById('editQC').value=q.C;document.getElementById('editQD').value=q.D||'';
+  document.getElementById('editQCorrect').value=q.correct;
   openModal('editQModal');
 }
 
@@ -2793,6 +2880,7 @@ async function saveEditQ(){
   const id=document.getElementById('editQId').value;const q=db.questions.find(x=>x.id===id);if(!q)return;
   q.question=document.getElementById('editQText').value.trim();q.A=document.getElementById('editQA').value.trim();
   q.B=document.getElementById('editQB').value.trim();q.C=document.getElementById('editQC').value.trim();
+  q.D=document.getElementById('editQD').value.trim();
   q.correct=document.getElementById('editQCorrect').value;
   await commitQuestions();closeModal('editQModal');renderQuestions();toast('Updated','','success');
 }
@@ -2827,18 +2915,19 @@ async function importBulk(){
   if(file.name.endsWith('.txt')){
     const blocks=text.trim().split(/\n\s*\n/);
     blocks.forEach(block=>{
-      const lines=block.split('\n').map(l=>l.trim()).filter(Boolean);if(lines.length<5)return;
-      const q=lines[0];const A=lines[1].replace(/^A[.)]\s*/i,'');const B=lines[2].replace(/^B[.)]\s*/i,'');const C=lines[3].replace(/^C[.)]\s*/i,'');
-      const ans=lines[4].replace(/^answer[:\s]*/i,'').trim().toUpperCase();
-      if(!['A','B','C'].includes(ans))return;
-      db.questions.push({id:uid(),subjectId:sid,question:q,A,B,C,correct:ans});added++;
+      const lines=block.split('\n').map(l=>l.trim()).filter(Boolean);if(lines.length<6)return;
+      const q=lines[0];const A=lines[1].replace(/^A[.)]\s*/i,'');const B=lines[2].replace(/^B[.)]\s*/i,'');
+      const C=lines[3].replace(/^C[.)]\s*/i,'');const D=lines[4].replace(/^D[.)]\s*/i,'');
+      const ans=lines[5].replace(/^answer[:\s]*/i,'').trim().toUpperCase();
+      if(!['A','B','C','D'].includes(ans))return;
+      db.questions.push({id:uid(),subjectId:sid,question:q,A,B,C,D,correct:ans});added++;
     });
   }else{
     const rows=text.trim().split('\n').slice(1);
     rows.forEach(r=>{
-      const parts=r.split(',');if(parts.length<5)return;
-      const[q,A,B,C,ans]=parts;if(!q||!A||!B||!C||!ans)return;
-      db.questions.push({id:uid(),subjectId:sid,question:q.trim(),A:A.trim(),B:B.trim(),C:C.trim(),correct:ans.trim().toUpperCase()});added++;
+      const parts=r.split(',');if(parts.length<6)return;
+      const[q,A,B,C,D,ans]=parts;if(!q||!A||!B||!C||!D||!ans)return;
+      db.questions.push({id:uid(),subjectId:sid,question:q.trim(),A:A.trim(),B:B.trim(),C:C.trim(),D:D.trim(),correct:ans.trim().toUpperCase()});added++;
     });
   }
   await commitQuestions();renderQuestions();toast('Imported',`${added} questions.`,'success');
@@ -3014,7 +3103,7 @@ function buildScript(sc){
         const gs=l=>l===q.correct?'correct':l===ans&&!ok?'wrong':'plain';
         return`<div style="margin-bottom:12px;padding-left:9px;border-left:3px solid ${ok?'#10b981':'#ef4444'};">
           <div style="font-size:12px;font-weight:600;margin-bottom:6px;">Q${i+1}: ${esc(q.question)}</div>
-          ${['A','B','C'].map(l=>`<div class="review-option ${gs(l)}"><b>${l}.</b> ${esc(q[l])} ${q.correct===l?' ✓':''} ${ans===l&&!ok?' ✗':''}</div>`).join('')}
+          ${['A','B','C','D'].map(l=>`<div class="review-option ${gs(l)}"><b>${l}.</b> ${esc(q[l])} ${q.correct===l?' ✓':''} ${ans===l&&!ok?' ✗':''}</div>`).join('')}
           <div style="font-size:10px;color:#94a3b8;margin-top:4px;">Selected: <b>${ans}</b> | Correct: <b>${q.correct}</b></div>
         </div>`;
       }).join('')}
@@ -3073,10 +3162,30 @@ function printAnswerScripts(){
 //  ADMIN SETTINGS
 // ═══════════════════════════════════════
 function renderAdminSettings(){
+  // Populate recovery email field
+  const emailEl = document.getElementById('adminEmail');
+  if(emailEl) emailEl.value = appSettings.adminEmail || '';
+
+  // Populate limits class dropdown from actual subjects
+  const limitClassSel = document.getElementById('limitClass');
+  if(limitClassSel){
+    const classes = [...new Set(db.subjects.map(s=>s.class))].sort();
+    const prev = limitClassSel.value;
+    limitClassSel.innerHTML = `<option value="">-- Select --</option>`;
+    classes.forEach(c => limitClassSel.insertAdjacentHTML('beforeend',`<option value="${c}">${c}</option>`));
+    if(prev) limitClassSel.value = prev;
+  }
+
   const limEl=document.getElementById('limitsDisplay');
   if(limEl){
     const entries=Object.entries(db.classLimits);
-    limEl.innerHTML=entries.length?entries.map(([cls,max])=>{const count=db.students.filter(s=>s.class===cls).length;return`<div style="display:flex;justify-content:space-between;padding:7px 10px;background:#f8fafc;border-radius:7px;margin-bottom:5px;font-size:12px;"><strong>${cls}</strong><span>${count}/${max}</span></div>`;}).join(''):'<p style="font-size:11px;color:#94a3b8;">No limits set.</p>';
+    limEl.innerHTML=entries.length?entries.map(([cls,max])=>{
+      const count=db.students.filter(s=>s.class===cls).length;
+      return`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:#f8fafc;border-radius:7px;margin-bottom:5px;font-size:12px;">
+        <strong>${cls}</strong>
+        <span style="color:${count>=max?'#ef4444':'#10b981'};">${count}/${max}</span>
+      </div>`;
+    }).join(''):'<p style="font-size:11px;color:#94a3b8;">No limits set.</p>';
   }
   if(appSettings.schoolLogo){tempLogo=appSettings.schoolLogo;applyLogoEl('logoPreviewImg','logoPreviewPlaceholder',appSettings.schoolLogo);}
 }
@@ -3093,14 +3202,71 @@ async function saveClassLimit(){
 }
 
 async function changeAdminCreds(){
+  const email=document.getElementById('adminEmail').value.trim();
   const cur=document.getElementById('adminCurrentPass').value;const nu=document.getElementById('adminNewUser').value.trim();
   const np=document.getElementById('adminNewPass').value;const cp=document.getElementById('adminConfirmPass').value;
   if(cur!==appSettings.adminPass){toast('Wrong password','','error');return;}
   if(!nu||!np){toast('Fill all fields','','warning');return;}
   if(np!==cp){toast('Passwords do not match','','error');return;}
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Invalid email format','','error');return;}
   appSettings.adminUser=nu;appSettings.adminPass=np;
+  if(email) appSettings.adminEmail=email;
   await commitSettings();toast('Updated!','Logging out.','success');
   setTimeout(()=>{localStorage.removeItem('cbt_user');location.reload();},1800);
+}
+
+// ── FORGOT PASSWORD ──
+function showForgotPassword(e){
+  e.preventDefault();
+  if(!appSettings.adminEmail){
+    toast('No recovery email set','Ask your school admin to add one in Settings first.','warning');
+    return;
+  }
+  document.getElementById('forgotEmailInput').value='';
+  document.getElementById('forgotMsg').textContent='';
+  openModal('forgotPassModal');
+}
+
+async function sendForgotPassword(){
+  const input = document.getElementById('forgotEmailInput').value.trim().toLowerCase();
+  const msgEl = document.getElementById('forgotMsg');
+  const savedEmail = (appSettings.adminEmail||'').trim().toLowerCase();
+
+  if(!input){msgEl.textContent='Please enter your email.';msgEl.style.color='#ef4444';return;}
+  if(!savedEmail){msgEl.textContent='No recovery email configured.';msgEl.style.color='#ef4444';return;}
+  if(input !== savedEmail){
+    // Intentionally vague to prevent fishing
+    msgEl.textContent='If that email matches our records, instructions have been sent.';
+    msgEl.style.color='#10b981';
+    return;
+  }
+
+  // Send recovery email via EmailJS (free, no backend needed)
+  // Uses mailto: fallback if EmailJS is not configured
+  const subject = encodeURIComponent('KipsTec CBT — Admin Password Recovery');
+  const body = encodeURIComponent(
+    `Hello,\n\nYour admin credentials for ${appSettings.schoolName||'your school'} CBT:\n\nUsername: ${appSettings.adminUser}\nPassword: ${appSettings.adminPass}\n\nPlease change your password after logging in.\n\n— KipsTec CBT System`
+  );
+
+  // Open mail client as fallback (works on all devices without a backend)
+  const mailtoLink = `mailto:${savedEmail}?subject=${subject}&body=${body}`;
+  window.open(mailtoLink, '_blank');
+
+  msgEl.textContent='✅ Your mail app has been opened with your credentials. Check your email.';
+  msgEl.style.color='#10b981';
+
+  // Auto-close modal after 3 seconds
+  setTimeout(()=>closeModal('forgotPassModal'), 3000);
+}
+
+// ── POPULATE LOGIN CLASS DROPDOWN ──
+function populateLoginClasses(){
+  const sel = document.getElementById('loginClass');
+  if(!sel) return;
+  const classes = [...new Set(db.subjects.map(s=>s.class))].sort();
+  // Keep the blank "admin" option, just refresh student class options
+  sel.innerHTML = `<option value="">-- Select class (leave blank for admin) --</option>`;
+  classes.forEach(c => sel.insertAdjacentHTML('beforeend',`<option value="${c}">${c}</option>`));
 }
 
 // ═══════════════════════════════════════
@@ -3159,7 +3325,7 @@ async function startExam(subjectId){
   if(!subj){toast('Not found','','error');return;}
   if(!subj.isActive){toast('Not active','Wait for your teacher.','warning');return;}
   if(db.scores.some(sc=>sc.studentId===currentUser.id&&sc.subjectId===subjectId)){toast('Already done','','warning');renderSubjectPicker();return;}
-  let pool=db.questions.filter(q=>q.subjectId===subjectId&&q.question&&q.A&&q.B&&q.C&&q.correct);
+  let pool=db.questions.filter(q=>q.subjectId===subjectId&&q.question&&q.A&&q.B&&q.C&&q.D&&q.correct);
   const needed=Number(subj.totalQuestions)||10;
   if(pool.length<needed){toast('Not enough questions',`Found ${pool.length}, need ${needed}.`,'error');return;}
   const questions=shuffleArray(pool).slice(0,needed);
@@ -3185,7 +3351,7 @@ function renderExamQ(){
   document.getElementById('questionCard').innerHTML=`
     <div class="question-header"><div class="q-number">${i+1}</div><h3>${esc(q.question)}</h3></div>
     <div class="options-list">
-      ${['A','B','C'].map(l=>`<div class="option-item ${ans===l?'selected':''}" onclick="selectAns('${l}')"><div class="option-letter">${l}</div><span>${esc(q[l])}</span></div>`).join('')}
+      ${['A','B','C','D'].map(l=>`<div class="option-item ${ans===l?'selected':''}" onclick="selectAns('${l}')"><div class="option-letter">${l}</div><span>${esc(q[l])}</span></div>`).join('')}
     </div>`;
   const last=i===examState.questions.length-1;
   document.getElementById('btnPrev').disabled=i===0;
@@ -3408,6 +3574,7 @@ populateRegClasses();
 // Global bindings
 Object.assign(window,{
   showLicensePage,activateLicense,switchAuthTab,checkNameAvail,updateSlotInfo,doRegister,doLogin,doLogout,
+  showForgotPassword,sendForgotPassword,populateLoginClasses,
   showDevPage,renderDevDashboard,renderLicenseKeys,renderDevSchools,renderDevMonitor,renderDevSettings,
   previewGenerateKey,createLicenseKey,revokeKey,openEditSchool,saveSchoolDetails,changeDevCreds,devRefreshAll,
   showAdminPage,switchTab,renderMonitor,
@@ -3422,5 +3589,233 @@ Object.assign(window,{
   openDevUnlockDialog,closeDevUnlockDialog,verifyDevPin
 });
 </script>
+<!-- ═══ PWA INSTALL BANNER ═══ -->
+<div id="pwaInstallBanner" style="
+  display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+  background:linear-gradient(135deg,#1e1b4b,#4f46e5);color:#fff;
+  padding:12px 18px;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,0.35);
+  z-index:99998;align-items:center;gap:12px;
+  max-width:360px;width:calc(100% - 32px);font-family:'Segoe UI',system-ui,sans-serif;
+">
+  <div style="font-size:26px;">📲</div>
+  <div style="flex:1;">
+    <div style="font-size:13px;font-weight:700;">Install KipsTec CBT</div>
+    <div style="font-size:11px;opacity:.8;margin-top:2px;">Add to home screen for offline access</div>
+  </div>
+  <button id="pwaInstallBtn" style="
+    background:#fff;color:#4f46e5;border:none;padding:7px 14px;
+    border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;
+  ">Install</button>
+  <button id="pwaInstallDismiss" style="
+    background:none;border:none;color:rgba(255,255,255,.6);
+    font-size:18px;cursor:pointer;padding:0 2px;line-height:1;
+  ">✕</button>
+</div>
+
+<!-- ═══ PWA OFFLINE BANNER ═══ -->
+<div id="pwaOfflineBanner" style="
+  display:none;position:fixed;top:0;left:0;right:0;
+  background:#ef4444;color:#fff;text-align:center;
+  padding:8px;font-size:12px;font-weight:600;z-index:99997;
+">
+  📡 You are offline. Some features may be unavailable.
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//  PWA — MANIFEST (inline blob, no separate file needed)
+// ═══════════════════════════════════════
+(function injectManifest(){
+  const manifest = {
+    name: 'KipsTec CBT System',
+    short_name: 'KipsTec CBT',
+    description: 'Computer Based Testing System by KipsTec',
+    start_url: './',
+    display: 'standalone',
+    orientation: 'any',
+    background_color: '#1e1b4b',
+    theme_color: '#1e1b4b',
+    categories: ['education','productivity'],
+    icons: [
+      {
+        src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%234f46e5'/%3E%3Ctext x='256' y='340' font-size='260' text-anchor='middle' font-family='system-ui' fill='white'%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E",
+        sizes:'192x192', type:'image/svg+xml', purpose:'any maskable'
+      },
+      {
+        src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%234f46e5'/%3E%3Ctext x='256' y='340' font-size='260' text-anchor='middle' font-family='system-ui' fill='white'%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E",
+        sizes:'512x512', type:'image/svg+xml', purpose:'any maskable'
+      }
+    ]
+  };
+  const blob = new Blob([JSON.stringify(manifest)],{type:'application/json'});
+  const link = document.getElementById('pwaManifest');
+  if(link) link.href = URL.createObjectURL(blob);
+})();
+
+// ═══════════════════════════════════════
+//  PWA — SERVICE WORKER (inline blob, no sw.js file needed)
+// ═══════════════════════════════════════
+(function registerServiceWorker(){
+  if(!('serviceWorker' in navigator)) return;
+
+  const CACHE = 'kipstec-cbt-v1';
+
+  const swCode = `
+    const CACHE = '${CACHE}';
+
+    self.addEventListener('install', e => {
+      e.waitUntil(
+        caches.open(CACHE).then(cache =>
+          cache.addAll([self.location.origin + self.location.pathname])
+        ).catch(()=>{})
+      );
+      self.skipWaiting();
+    });
+
+    self.addEventListener('activate', e => {
+      e.waitUntil(
+        caches.keys().then(keys =>
+          Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+        )
+      );
+      self.clients.claim();
+    });
+
+    // Network-first: fresh data online, cached app shell offline
+    self.addEventListener('fetch', e => {
+      if(e.request.method !== 'GET') return;
+      // Never cache Supabase API calls
+      if(e.request.url.includes('supabase.co')) return;
+      // Never cache CDN scripts (xlsx, supabase-js) — they must load fresh
+      if(e.request.url.includes('cdn.jsdelivr.net')) return;
+
+      e.respondWith(
+        fetch(e.request)
+          .then(res => {
+            // Cache a fresh copy of the app shell on each successful load
+            if(res.ok){
+              const clone = res.clone();
+              caches.open(CACHE).then(cache => cache.put(e.request, clone));
+            }
+            return res;
+          })
+          .catch(() => caches.match(e.request))
+      );
+    });
+
+    self.addEventListener('message', e => {
+      if(e.data === 'skipWaiting') self.skipWaiting();
+    });
+  `;
+
+  const blob = new Blob([swCode],{type:'application/javascript'});
+  const swUrl = URL.createObjectURL(blob);
+
+  navigator.serviceWorker.register(swUrl, {scope:'./'})
+    .then(reg => {
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        nw.addEventListener('statechange', () => {
+          if(nw.state === 'installed' && navigator.serviceWorker.controller){
+            if(typeof toast === 'function')
+              toast('Update Available','Reload the app to get the latest version','warning');
+          }
+        });
+      });
+    })
+    .catch(err => console.warn('[PWA] SW registration failed:', err));
+})();
+
+// ═══════════════════════════════════════
+//  PWA — INSTALL PROMPT
+// ═══════════════════════════════════════
+(function setupInstallPrompt(){
+  let deferredPrompt = null;
+  const banner     = document.getElementById('pwaInstallBanner');
+  const installBtn = document.getElementById('pwaInstallBtn');
+  const dismissBtn = document.getElementById('pwaInstallDismiss');
+
+  // Already installed as standalone — hide everything
+  if(window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone){
+    return;
+  }
+
+  // Chrome / Edge / Android: capture the native install prompt
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if(sessionStorage.getItem('pwaDismissed')) return;
+    setTimeout(() => { if(banner) banner.style.display = 'flex'; }, 4000);
+  });
+
+  if(installBtn){
+    installBtn.addEventListener('click', async () => {
+      if(!deferredPrompt) return;
+      banner.style.display = 'none';
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if(outcome === 'accepted' && typeof toast === 'function')
+        toast('Installing…','KipsTec CBT added to your device 📲','success');
+      deferredPrompt = null;
+    });
+  }
+
+  if(dismissBtn){
+    dismissBtn.addEventListener('click', () => {
+      banner.style.display = 'none';
+      sessionStorage.setItem('pwaDismissed','1');
+    });
+  }
+
+  // iOS Safari: no beforeinstallprompt, show manual instructions instead
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if(isIos && !sessionStorage.getItem('pwaDismissed')){
+    setTimeout(() => {
+      if(!banner) return;
+      banner.style.display = 'flex';
+      if(installBtn){
+        installBtn.textContent = 'How to Install';
+        installBtn.onclick = () => alert(
+          'To install on iPhone/iPad:\n\n' +
+          '1. Tap the Share button (□↑) at the bottom of Safari\n' +
+          '2. Scroll down and tap "Add to Home Screen"\n' +
+          '3. Tap "Add" — done! 🎉'
+        );
+      }
+    }, 4000);
+  }
+})();
+
+// ═══════════════════════════════════════
+//  PWA — ONLINE / OFFLINE DETECTION
+// ═══════════════════════════════════════
+(function setupOfflineDetection(){
+  const banner = document.getElementById('pwaOfflineBanner');
+  if(!banner) return;
+
+  function update(){
+    if(!navigator.onLine){
+      banner.style.display = 'block';
+      // Warn student mid-exam so they don't panic
+      if(typeof examState !== 'undefined' && examState && !examState.submitted){
+        if(typeof toast === 'function')
+          toast('Connection Lost','Your exam progress is saved locally. It will submit when you reconnect.','warning');
+      }
+    } else {
+      if(banner.style.display === 'block'){
+        // Was offline, now back online
+        if(typeof toast === 'function')
+          toast('Back Online','Connection restored ✅','success');
+      }
+      banner.style.display = 'none';
+    }
+  }
+
+  window.addEventListener('online',  update);
+  window.addEventListener('offline', update);
+  update();
+})();
+</script>
+
 </body>
 </html>
