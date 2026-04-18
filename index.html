@@ -523,7 +523,7 @@ pointer-events:none;}
 
     <!-- DEV SETTINGS -->
     <div id="page-devSettings" class="page">
-      <div class="form-grid fg-2">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">
         <div class="section-card">
           <div class="section-header"><h3>🔐 Developer Credentials</h3></div>
           <div class="section-body">
@@ -797,57 +797,75 @@ pointer-events:none;}
 
     <!-- SETTINGS -->
     <div id="apage-settings" class="page">
-      <div class="form-grid fg-2">
+
+      <!-- Row 1: Credentials + Logo side by side on desktop, stacked on mobile -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:14px;">
+
         <div class="section-card">
           <div class="section-header"><h3>🔑 Admin Credentials</h3></div>
           <div class="section-body">
             <div class="alert alert-warning">Will log you out after change.</div>
-            <div class="form-group"><label class="form-label">Recovery Email</label><input class="form-control" type="email" id="adminEmail" placeholder="admin@school.com"/><small style="color:#64748b;font-size:10px;margin-top:3px;display:block;">Used for password recovery — keep this up to date.</small></div>
+            <div class="form-group">
+              <label class="form-label">Recovery Email</label>
+              <input class="form-control" type="email" id="adminEmail" placeholder="admin@school.com"/>
+              <small style="color:#64748b;font-size:10px;margin-top:3px;display:block;">Used for forgot-password recovery.</small>
+            </div>
             <div class="form-group"><label class="form-label">Current Password</label><input class="form-control" type="password" id="adminCurrentPass"/></div>
             <div class="form-group"><label class="form-label">New Username</label><input class="form-control" id="adminNewUser"/></div>
             <div class="form-group"><label class="form-label">New Password</label><input class="form-control" type="password" id="adminNewPass"/></div>
-            <div class="form-group"><label class="form-label">Confirm</label><input class="form-control" type="password" id="adminConfirmPass"/></div>
-            <button class="btn btn-primary" onclick="changeAdminCreds()">💾 Update</button>
+            <div class="form-group"><label class="form-label">Confirm Password</label><input class="form-control" type="password" id="adminConfirmPass"/></div>
+            <button class="btn btn-primary" onclick="changeAdminCreds()">💾 Update Credentials</button>
           </div>
         </div>
+
         <div class="section-card">
           <div class="section-header"><h3>🏫 School Logo</h3></div>
           <div class="section-body">
             <div class="alert alert-info">ℹ️ School name is set by KipsTec developer only.</div>
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
-              <div id="logoPreviewWrap" style="width:56px;height:56px;border-radius:11px;background:#f1f5f9;border:2px dashed #e2e8f0;display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;">
+              <div id="logoPreviewWrap" style="width:56px;height:56px;border-radius:11px;background:#f1f5f9;border:2px dashed #e2e8f0;display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;flex-shrink:0;">
                 <img id="logoPreviewImg" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:9px;"/>
                 <span id="logoPreviewPlaceholder">🏫</span>
               </div>
-              <div>
+              <div style="display:flex;flex-direction:column;gap:6px;">
                 <input type="file" id="logoUploadInput" accept="image/*" style="display:none;" onchange="handleLogoUpload(event)"/>
                 <button class="btn btn-secondary btn-sm" onclick="document.getElementById('logoUploadInput').click()">📁 Upload Logo</button>
-                <button class="btn btn-danger btn-sm" onclick="removeLogo()" style="margin-top:6px;">🗑️ Remove</button>
+                <button class="btn btn-danger btn-sm" onclick="removeLogo()">🗑️ Remove Logo</button>
               </div>
             </div>
             <button class="btn btn-primary" onclick="saveLogo()">💾 Save Logo</button>
           </div>
         </div>
+
+      </div>
+
+      <!-- Row 2: Class Limits + Danger Zone side by side on desktop, stacked on mobile -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">
+
         <div class="section-card">
-          <div class="section-header"><h3>🔒 Class Limits</h3></div>
+          <div class="section-header"><h3>🔒 Class Registration Limits</h3></div>
           <div class="section-body">
-            <div class="form-group"><label class="form-label">Class</label>
+            <div class="alert alert-info">Limit how many students can register per class.</div>
+            <div class="form-group">
+              <label class="form-label">Class</label>
               <select class="form-control" id="limitClass" onchange="loadLimitVal()" style="font-size:12px;">
-                <option value="">-- Select --</option>
+                <option value="">-- Select Class --</option>
               </select>
             </div>
-            <div class="form-group"><label class="form-label">Max Students</label><input class="form-control" type="number" id="limitVal"/></div>
-            <button class="btn btn-primary" onclick="saveClassLimit()">💾 Save</button>
+            <div class="form-group"><label class="form-label">Max Students</label><input class="form-control" type="number" id="limitVal" placeholder="e.g. 40"/></div>
+            <button class="btn btn-primary" onclick="saveClassLimit()">💾 Save Limit</button>
             <div style="margin-top:14px;" id="limitsDisplay"></div>
           </div>
         </div>
+
         <div class="section-card" style="border-top:3px solid #ef4444;">
           <div class="section-header"><h3>⚠️ Danger Zone</h3></div>
           <div class="section-body">
-            <div class="alert alert-danger">Irreversible actions!</div>
-            <button class="btn btn-danger" onclick="clearAllResults()">🗑️ Clear ALL Results</button>
+            <div class="alert alert-danger">These actions are permanent and cannot be undone.</div>
+            <button class="btn btn-danger" style="width:100%;margin-bottom:8px;" onclick="clearAllResults()">🗑️ Clear ALL Results</button>
           </div>
         </div>
+
       </div>
     </div>
 
@@ -1483,6 +1501,12 @@ async function loadAppSettings(){
       Object.assign(devConfig, data.devconfig);
     }
 
+    // Restore classlimits (still lives in settings row)
+    if(data.classlimits){
+      db.classLimits = data.classlimits;
+    }
+    // NOTE: subjects are now in their own table — loaded by loadDB()/loadStudentData()
+
   }catch(err){
     console.error('loadAppSettings failed:', err);
   }
@@ -1700,7 +1724,8 @@ async function activateLicense(){
   currentSchoolId = data.school_id;
   localStorage.setItem('school_id', data.school_id);
 
-  // 7. Save app settings
+  // 7. Save app settings — but PRESERVE existing subjects/classlimits if this school
+  //    was already set up before (re-activation on a new browser must not wipe data)
   appSettings.schoolName = data.schoolname;
   appSettings.licenseKey = key;
   appSettings.licenseStatus = 'active';
@@ -1708,14 +1733,23 @@ async function activateLicense(){
   appSettings.activatedAt = now;
   appSettings.expiresAt = data.expiresat;
 
+  // Fetch existing settings row first to preserve classlimits and appsettings (e.g. logo)
+  const { data: existingSettings } = await SB
+    .from('settings')
+    .select('classlimits, appsettings')
+    .eq('school_id', data.school_id)
+    .single();
+
+  const preservedClassLimits  = existingSettings?.classlimits  || {};
+  const mergedAppSettings     = Object.assign({}, existingSettings?.appsettings || {}, appSettings);
+
   const { error: settingsErr } = await SB.from('settings').upsert([{
     id: data.school_id,
     school_id: data.school_id,
-    subjects: [],
-    classlimits: {},
-    appsettings: appSettings,
+    classlimits: preservedClassLimits,
+    appsettings: mergedAppSettings,
     devconfig: devConfig
-  }]);
+  }], { onConflict: 'school_id' });
 
   if(settingsErr){
     console.error('Settings save failed:', settingsErr);
@@ -1764,15 +1798,14 @@ async function loadDB(){
   }
 
   try{
-    const [setRes, stuRes, qRes, scRes, keyRes] = await Promise.all([
+    const [setRes, stuRes, qRes, scRes, keyRes, subRes] = await Promise.all([
       SB.from('settings').select('*').eq('school_id',currentSchoolId).single(),
       SB.from('students').select('*').eq('school_id',currentSchoolId),
       SB.from('questions').select('*').eq('school_id',currentSchoolId),
       SB.from('scores').select('*').eq('school_id',currentSchoolId),
-      SB.from('licensekeys').select('*').eq('school_id',currentSchoolId)
+      SB.from('licensekeys').select('*').eq('school_id',currentSchoolId),
+      SB.from('subjects').select('*').eq('school_id',currentSchoolId)
     ]);
-
-
 
     if(setRes.error){
       toast('Settings Error', setRes.error.message, 'error');
@@ -1780,7 +1813,6 @@ async function loadDB(){
     }
 
     if(setRes.data){
-      db.subjects = setRes.data.subjects || [];
       db.classLimits = setRes.data.classlimits || {};
       const s = setRes.data.appsettings || {};
       Object.assign(appSettings, s);
@@ -1789,6 +1821,18 @@ async function loadDB(){
         Object.assign(devConfig, setRes.data.devconfig);
       }
     }
+
+    // Subjects now come from their own table
+    db.subjects = (subRes.data || []).map(s => ({
+      id: s.id,
+      school_id: s.school_id,
+      name: s.name,
+      class: s.class,
+      duration: s.duration,
+      totalQuestions: s.totalquestions,
+      marksPerQuestion: s.marksperquestion,
+      isActive: s.isactive
+    }));
 
     db.students = (stuRes.data || []).map(s => ({
       id: s.id,
@@ -1852,9 +1896,9 @@ async function loadStudentData(){
   }
     
   try{
-    // 🔥 FIX: Removed .single() to prevent crashing from duplicate database rows
-    const [setRes,qRes,scRes]=await Promise.all([
+    const [setRes, subRes, qRes, scRes]=await Promise.all([
       SB.from('settings').select('*').eq('school_id',currentSchoolId),
+      SB.from('subjects').select('*').eq('school_id',currentSchoolId),
       SB.from('questions').select('*').eq('school_id',currentSchoolId),
       SB.from('scores')
         .select('*')
@@ -1862,13 +1906,23 @@ async function loadStudentData(){
         .eq('studentid',currentUser.id)
     ]);
 
-    // 🔥 FIX: Safely grab the first row even if duplicates exist
     if(setRes.data && setRes.data.length > 0){
       const settingsRow = setRes.data[0];
-      db.subjects = settingsRow.subjects || [];
       db.classLimits = settingsRow.classlimits || {};
       Object.assign(appSettings, settingsRow.appsettings || {});
     }
+
+    // Subjects from dedicated table
+    db.subjects = (subRes.data || []).map(s => ({
+      id: s.id,
+      school_id: s.school_id,
+      name: s.name,
+      class: s.class,
+      duration: s.duration,
+      totalQuestions: s.totalquestions,
+      marksPerQuestion: s.marksperquestion,
+      isActive: s.isactive
+    }));
 
     db.questions = (qRes.data || []).map(q => ({
       id: q.id, school_id: q.school_id, subjectId: q.subjectid,
@@ -1897,7 +1951,6 @@ async function commitSettings() {
 
   const { error } = await SB.from('settings').upsert([{
     school_id: currentSchoolId,
-    subjects: db.subjects,
     classlimits: db.classLimits,
     appsettings: appSettings,
     devconfig: devConfig
@@ -2273,23 +2326,25 @@ function doLogout(){
 // 🔥 NEW FUNCTION: Forces Dev Dashboard to grab data across ALL schools
 async function loadAllDevData() {
   try {
-    const [stuRes, scRes, setRes] = await Promise.all([
+    const [stuRes, scRes, subRes] = await Promise.all([
       SB.from('students').select('*'),
       SB.from('scores').select('*'),
-      SB.from('settings').select('*')
+      SB.from('subjects').select('*')
     ]);
-    
+
     db.students = stuRes.data || [];
-    db.scores = scRes.data || [];
-    
-    let allSubjects = [];
-    (setRes.data || []).forEach(row => {
-      if (row.subjects && Array.isArray(row.subjects)) {
-        row.subjects.forEach(s => allSubjects.push({...s, school_id: row.school_id}));
-      }
-    });
-    db.subjects = allSubjects;
-    
+    db.scores   = scRes.data  || [];
+    db.subjects = (subRes.data || []).map(s => ({
+      id: s.id,
+      school_id: s.school_id,
+      name: s.name,
+      class: s.class,
+      duration: s.duration,
+      totalQuestions: s.totalquestions,
+      marksPerQuestion: s.marksperquestion,
+      isActive: s.isactive
+    }));
+
   } catch (err) {
     console.error('Dev Data Load Error:', err);
   }
@@ -2781,13 +2836,39 @@ function renderSubjects(){
 }
 
 async function addSubject(){
-  const name=document.getElementById('mSubName').value.trim();const cls=document.getElementById('mSubClass').value.trim();
-  const dur=parseInt(document.getElementById('mSubDur').value)||0;const total=parseInt(document.getElementById('mSubTotal').value)||0;
+  const name=document.getElementById('mSubName').value.trim();
+  const cls=document.getElementById('mSubClass').value.trim();
+  const dur=parseInt(document.getElementById('mSubDur').value)||0;
+  const total=parseInt(document.getElementById('mSubTotal').value)||0;
   const marks=parseFloat(document.getElementById('mSubMarks').value)||1;
   if(!name||!cls||!dur||!total){toast('Fill all fields','','warning');return;}
-  db.subjects.push({id:uid(),name,class:cls,duration:dur,totalQuestions:total,marksPerQuestion:marks,isActive:false});
-  await commitSettings();closeModal('addSubjectModal');refreshAllClassFilters();renderSubjects();refreshQSubDropdowns();
-  logActivity(`Subject added: ${name}`,'blue');toast('Added',name,'success');
+
+  const newSubject = {
+    id: uid(),
+    school_id: currentSchoolId,
+    name,
+    class: cls,
+    duration: dur,
+    totalquestions: total,
+    marksperquestion: marks,
+    isactive: false
+  };
+
+  const {error} = await SB.from('subjects').insert([newSubject]);
+  if(error){toast('Failed to add subject', error.message, 'error');return;}
+
+  // Add to local cache in JS format
+  db.subjects.push({
+    id: newSubject.id,
+    school_id: currentSchoolId,
+    name, class: cls, duration: dur,
+    totalQuestions: total, marksPerQuestion: marks, isActive: false
+  });
+
+  closeModal('addSubjectModal');
+  refreshAllClassFilters();renderSubjects();refreshQSubDropdowns();
+  logActivity(`Subject added: ${name}`,'blue');
+  toast('Added', name, 'success');
   ['mSubName','mSubClass','mSubDur','mSubTotal','mSubMarks'].forEach(id=>document.getElementById(id).value='');
 }
 
@@ -2800,27 +2881,61 @@ function openEditSubject(id){
 }
 
 async function saveEditSubject(){
-  const id=document.getElementById('editSubId').value;const s=db.subjects.find(x=>x.id===id);if(!s)return;
-  s.name=document.getElementById('editSubName').value.trim();s.class=document.getElementById('editSubClass').value.trim();
-  s.duration=parseInt(document.getElementById('editSubDur').value)||s.duration;
-  s.totalQuestions=parseInt(document.getElementById('editSubTotal').value)||s.totalQuestions;
-  s.marksPerQuestion=parseFloat(document.getElementById('editSubMarks').value)||s.marksPerQuestion;
-  await commitSettings();closeModal('editSubjectModal');renderSubjects();toast('Updated','','success');
+  const id=document.getElementById('editSubId').value;
+  const s=db.subjects.find(x=>x.id===id);if(!s)return;
+
+  const name=document.getElementById('editSubName').value.trim();
+  const cls=document.getElementById('editSubClass').value.trim();
+  const dur=parseInt(document.getElementById('editSubDur').value)||s.duration;
+  const total=parseInt(document.getElementById('editSubTotal').value)||s.totalQuestions;
+  const marks=parseFloat(document.getElementById('editSubMarks').value)||s.marksPerQuestion;
+
+  const {error} = await SB.from('subjects').update({
+    name, class: cls,
+    duration: dur,
+    totalquestions: total,
+    marksperquestion: marks
+  }).eq('id', id).eq('school_id', currentSchoolId);
+
+  if(error){toast('Update failed', error.message, 'error');return;}
+
+  // Update local cache
+  s.name=name; s.class=cls; s.duration=dur;
+  s.totalQuestions=total; s.marksPerQuestion=marks;
+
+  closeModal('editSubjectModal');
+  refreshAllClassFilters();renderSubjects();
+  toast('Updated','','success');
 }
 
 function confirmDelSubject(id){
   const s=db.subjects.find(x=>x.id===id);
   confirmAction('Delete Subject',`Delete "${s?.name}" and all its questions?`,async()=>{
-    db.subjects=db.subjects.filter(x=>x.id!==id);db.questions=db.questions.filter(q=>q.subjectId!==id);
-    await commitSettings();await commitQuestions();renderSubjects();renderQuestions();toast('Deleted','','success');
+    const {error} = await SB.from('subjects').delete()
+      .eq('id', id).eq('school_id', currentSchoolId);
+    if(error){toast('Delete failed', error.message, 'error');return;}
+
+    db.subjects=db.subjects.filter(x=>x.id!==id);
+    db.questions=db.questions.filter(q=>q.subjectId!==id);
+    await commitQuestions();
+    refreshAllClassFilters();renderSubjects();renderQuestions();
+    toast('Deleted','','success');
   });
 }
 
 async function toggleSubject(id,checked){
   const s=db.subjects.find(x=>x.id===id);if(!s)return;
-  s.isActive=checked;await commitSettings();
+
+  const {error} = await SB.from('subjects')
+    .update({isactive: checked})
+    .eq('id', id).eq('school_id', currentSchoolId);
+
+  if(error){toast('Update failed', error.message, 'error');renderSubjects();return;}
+
+  s.isActive=checked;
   logActivity(`Exam ${checked?'activated':'deactivated'}: ${s.name}`,checked?'green':'orange');
-  toast(checked?'Activated':'Deactivated',s.name,checked?'success':'warning');renderSubjects();
+  toast(checked?'Activated':'Deactivated', s.name, checked?'success':'warning');
+  renderSubjects();
 }
 
 // ═══════════════════════════════════════
