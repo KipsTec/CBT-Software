@@ -79,6 +79,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f1f5f9;color:#1e293
 /* ── PAGES ── */
 .page{padding:18px;display:none;}
 .page.active{display:block;}
+/* Settings page uses flex internally — must not be constrained to display:block */
+#apage-settings.active{display:block;}
+#apage-settings.active #settingsGrid{display:flex;}
 
 /* ── STATS ── */
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:20px;}
@@ -797,11 +800,10 @@ pointer-events:none;}
 
     <!-- SETTINGS -->
     <div id="apage-settings" class="page">
+      <div id="settingsGrid" style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;width:100%;">
 
-      <!-- Row 1: Credentials + Logo side by side on desktop, stacked on mobile -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:14px;">
-
-        <div class="section-card">
+        <!-- Admin Credentials -->
+        <div class="section-card" style="flex:1;min-width:270px;">
           <div class="section-header"><h3>🔑 Admin Credentials</h3></div>
           <div class="section-body">
             <div class="alert alert-warning">Will log you out after change.</div>
@@ -818,7 +820,8 @@ pointer-events:none;}
           </div>
         </div>
 
-        <div class="section-card">
+        <!-- School Logo -->
+        <div class="section-card" style="flex:1;min-width:270px;">
           <div class="section-header"><h3>🏫 School Logo</h3></div>
           <div class="section-body">
             <div class="alert alert-info">ℹ️ School name is set by KipsTec developer only.</div>
@@ -837,12 +840,8 @@ pointer-events:none;}
           </div>
         </div>
 
-      </div>
-
-      <!-- Row 2: Class Limits + Danger Zone side by side on desktop, stacked on mobile -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">
-
-        <div class="section-card">
+        <!-- Class Limits -->
+        <div class="section-card" style="flex:1;min-width:270px;">
           <div class="section-header"><h3>🔒 Class Registration Limits</h3></div>
           <div class="section-body">
             <div class="alert alert-info">Limit how many students can register per class.</div>
@@ -858,11 +857,12 @@ pointer-events:none;}
           </div>
         </div>
 
-        <div class="section-card" style="border-top:3px solid #ef4444;">
+        <!-- Danger Zone -->
+        <div class="section-card" style="flex:1;min-width:270px;border-top:3px solid #ef4444;">
           <div class="section-header"><h3>⚠️ Danger Zone</h3></div>
           <div class="section-body">
             <div class="alert alert-danger">These actions are permanent and cannot be undone.</div>
-            <button class="btn btn-danger" style="width:100%;margin-bottom:8px;" onclick="clearAllResults()">🗑️ Clear ALL Results</button>
+            <button class="btn btn-danger" style="width:100%;" onclick="clearAllResults()">🗑️ Clear ALL Results</button>
           </div>
         </div>
 
@@ -1474,6 +1474,27 @@ async function verifyDevPin(){
   }
 }
 
+
+// ═══════════════════════════════════════
+//  LOAD DEV CONFIG (always runs — independent of school activation)
+// ═══════════════════════════════════════
+async function loadDevConfig(){
+  try{
+    const { data, error } = await SB
+      .from('developerconfig')
+      .select('username, password, unlock_pin')
+      .eq('is_active', true)
+      .single();
+
+    if(error || !data) return;
+
+    devConfig.username  = data.username  || '';
+    devConfig.password  = data.password  || '';
+    devConfig.unlockPin = data.unlock_pin || '';
+  }catch(err){
+    console.warn('loadDevConfig failed:', err);
+  }
+}
 
 // ═══════════════════════════════════════
 //  LOAD APP SETTINGS (NEW - fixes license issue on reload)
@@ -2716,7 +2737,14 @@ function showAdminPage(page,navEl){
   if(page==='monitor')renderMonitor();
   if(page==='results'){refreshResSubjects();renderResults();}
   if(page==='answers'){refreshAnsSubjects();renderAnswerScripts();}
-  if(page==='settings')renderAdminSettings();
+  if(page==='settings'){
+    // Double requestAnimationFrame: first frame lets browser apply display:block,
+    // second frame lets it finish layout calculation, THEN we inject content.
+    // This reliably fixes mobile Chrome's flex/grid collapse after display:none→block.
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{ renderAdminSettings(); });
+    });
+  }
 }
 
 function switchTab(group,tab,el){
@@ -3562,6 +3590,9 @@ applyResponsiveLayouts();
 // ═══════════════════════════════════════
 (async function init(){
 
+// Always load dev credentials first — works even with no license activated
+await loadDevConfig();
+
 // 🔐 NEW: Verify activation FIRST
 await verifyActivation();
 
@@ -3689,7 +3720,7 @@ populateRegClasses();
 // Global bindings
 Object.assign(window,{
   showLicensePage,activateLicense,switchAuthTab,checkNameAvail,updateSlotInfo,doRegister,doLogin,doLogout,
-  showForgotPassword,sendForgotPassword,populateLoginClasses,
+  showForgotPassword,sendForgotPassword,populateLoginClasses,loadDevConfig,
   showDevPage,renderDevDashboard,renderLicenseKeys,renderDevSchools,renderDevMonitor,renderDevSettings,
   previewGenerateKey,createLicenseKey,revokeKey,openEditSchool,saveSchoolDetails,changeDevCreds,devRefreshAll,
   showAdminPage,switchTab,renderMonitor,
