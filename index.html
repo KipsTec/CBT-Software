@@ -795,9 +795,60 @@ pointer-events:none;}
       </div>
     </div>
 
-    <!-- SETTINGS — rendered entirely by renderAdminSettings() -->
+    <!-- SETTINGS -->
     <div id="apage-settings" class="page">
-      <div id="settingsContainer"></div>
+      <div>
+        <div class="section-card">
+          <div class="section-header"><h3>🔑 Admin Credentials</h3></div>
+          <div class="section-body">
+            <div class="alert alert-warning">Will log you out after change.</div>
+            <div class="form-group"><label class="form-label">Recovery Email</label><input class="form-control" type="email" id="adminEmail" placeholder="admin@school.com"/><small style="color:#64748b;font-size:10px;margin-top:3px;display:block;">Used for forgot-password recovery.</small></div>
+            <div class="form-group"><label class="form-label">Current Password</label><input class="form-control" type="password" id="adminCurrentPass"/></div>
+            <div class="form-group"><label class="form-label">New Username</label><input class="form-control" id="adminNewUser"/></div>
+            <div class="form-group"><label class="form-label">New Password</label><input class="form-control" type="password" id="adminNewPass"/></div>
+            <div class="form-group"><label class="form-label">Confirm</label><input class="form-control" type="password" id="adminConfirmPass"/></div>
+            <button class="btn btn-primary" onclick="changeAdminCreds()">💾 Update</button>
+          </div>
+        </div>
+        <div class="section-card">
+          <div class="section-header"><h3>🏫 School Logo</h3></div>
+          <div class="section-body">
+            <div class="alert alert-info">ℹ️ School name is set by KipsTec developer only.</div>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+              <div id="logoPreviewWrap" style="width:56px;height:56px;border-radius:11px;background:#f1f5f9;border:2px dashed #e2e8f0;display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;">
+                <img id="logoPreviewImg" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:9px;"/>
+                <span id="logoPreviewPlaceholder">🏫</span>
+              </div>
+              <div>
+                <input type="file" id="logoUploadInput" accept="image/*" style="display:none;" onchange="handleLogoUpload(event)"/>
+                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('logoUploadInput').click()">📁 Upload Logo</button>
+                <button class="btn btn-danger btn-sm" onclick="removeLogo()" style="margin-top:6px;">🗑️ Remove</button>
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="saveLogo()">💾 Save Logo</button>
+          </div>
+        </div>
+        <div class="section-card">
+          <div class="section-header"><h3>🔒 Class Limits</h3></div>
+          <div class="section-body">
+            <div class="form-group"><label class="form-label">Class</label>
+              <select class="form-control" id="limitClass" onchange="loadLimitVal()" style="font-size:12px;">
+                <option value="">-- Select --</option>
+              </select>
+            </div>
+            <div class="form-group"><label class="form-label">Max Students</label><input class="form-control" type="number" id="limitVal"/></div>
+            <button class="btn btn-primary" onclick="saveClassLimit()">💾 Save</button>
+            <div style="margin-top:14px;" id="limitsDisplay"></div>
+          </div>
+        </div>
+        <div class="section-card" style="border-top:3px solid #ef4444;">
+          <div class="section-header"><h3>⚠️ Danger Zone</h3></div>
+          <div class="section-body">
+            <div class="alert alert-danger">Irreversible actions!</div>
+            <button class="btn btn-danger" onclick="clearAllResults()">🗑️ Clear ALL Results</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="admin-footer">Powered by <strong>KipsTec</strong> &copy; 2025 — <span id="footerSchoolName"></span></div>
@@ -1749,6 +1800,10 @@ async function loadDB(){
     return;
   }
 
+  // Show a visible loading indicator
+  const pageTitle = document.getElementById('adminPageTitle');
+  if(pageTitle) pageTitle.textContent = 'Loading...';
+
   try{
     const [setRes, stuRes, qRes, scRes, keyRes, subRes] = await Promise.all([
       SB.from('settings').select('*').eq('school_id',currentSchoolId),
@@ -1758,6 +1813,20 @@ async function loadDB(){
       SB.from('licensekeys').select('*').eq('school_id',currentSchoolId),
       SB.from('subjects').select('*').eq('school_id',currentSchoolId)
     ]);
+
+    // Show ANY Supabase errors visibly so they can be diagnosed
+    const errors = [
+      setRes.error && `Settings: ${setRes.error.message}`,
+      stuRes.error && `Students: ${stuRes.error.message}`,
+      qRes.error   && `Questions: ${qRes.error.message}`,
+      scRes.error  && `Scores: ${scRes.error.message}`,
+      subRes.error && `Subjects: ${subRes.error.message}`,
+    ].filter(Boolean);
+
+    if(errors.length){
+      alert('Supabase Error:\n\n' + errors.join('\n'));
+      console.error('loadDB errors:', errors);
+    }
 
     // Settings — use first row if exists, don't crash if missing
     const settingsRow = (setRes.data && setRes.data.length > 0) ? setRes.data[0] : null;
@@ -2031,9 +2100,7 @@ function handleLogoUpload(e){
   const reader=new FileReader();
   reader.onload=ev=>{
     tempLogo=ev.target.result;
-    // Update the dynamically rendered logo preview in settings
-    const wrap=document.getElementById('logoPreviewWrap');
-    if(wrap) wrap.innerHTML=`<img src="${tempLogo}" style="width:100%;height:100%;object-fit:cover;border-radius:9px;"/>`;
+    applyLogoEl('logoPreviewImg','logoPreviewPlaceholder',tempLogo);
   };
   reader.readAsDataURL(file);
   e.target.value='';
@@ -2041,13 +2108,12 @@ function handleLogoUpload(e){
 
 function removeLogo(){
   tempLogo='';
-  const wrap=document.getElementById('logoPreviewWrap');
-  if(wrap) wrap.innerHTML=`<span style="font-size:26px;">🏫</span>`;
+  applyLogoEl('logoPreviewImg','logoPreviewPlaceholder','');
   toast('Logo removed','','success');
 }
 
 async function saveLogo(){
-  appSettings.schoolLogo=tempLogo;
+  appSettings.schoolLogo=tempLogo||appSettings.schoolLogo;
   await commitSettings();
   applyBranding();
   toast('Logo Saved','','success');
@@ -3238,125 +3304,43 @@ function printAnswerScripts(){
 //  ADMIN SETTINGS
 // ═══════════════════════════════════════
 function renderAdminSettings(){
-  const container = document.getElementById('settingsContainer');
-  if(!container){ console.error('settingsContainer not found'); return; }
+  // Populate email field
+  const emailEl = document.getElementById('adminEmail');
+  if(emailEl) emailEl.value = appSettings.adminEmail || '';
 
-  // ── DIAGNOSTIC: show exactly what state we have ──
-  const diag = `
-    <div style="background:#1e1b4b;color:#a5b4fc;padding:14px 16px;border-radius:12px;font-size:11px;font-family:monospace;margin-bottom:16px;line-height:1.8;">
-      <strong style="color:#fff;font-size:13px;">🔍 Settings Diagnostic</strong><br/>
-      currentSchoolId: <span style="color:#fbbf24;">${currentSchoolId || 'NULL'}</span><br/>
-      isDataLoaded: <span style="color:#fbbf24;">${isDataLoaded}</span><br/>
-      appSettings.adminUser: <span style="color:#fbbf24;">${appSettings.adminUser || 'empty'}</span><br/>
-      appSettings.schoolName: <span style="color:#fbbf24;">${appSettings.schoolName || 'empty'}</span><br/>
-      db.subjects.length: <span style="color:#fbbf24;">${db.subjects.length}</span><br/>
-      db.students.length: <span style="color:#fbbf24;">${db.students.length}</span><br/>
-      db.classLimits keys: <span style="color:#fbbf24;">${Object.keys(db.classLimits||{}).join(', ')||'none'}</span><br/>
-      <button onclick="adminRefreshAll().then(()=>renderAdminSettings())" style="margin-top:8px;padding:6px 14px;background:#4f46e5;color:#fff;border:none;border-radius:7px;cursor:pointer;font-size:12px;">🔄 Force Reload Data</button>
-    </div>`;
-
-  try{
+  // Populate limits class dropdown from subjects
+  const limitSel = document.getElementById('limitClass');
+  if(limitSel){
+    const prev = limitSel.value;
     const classes = [...new Set(db.subjects.map(s=>s.class))].sort();
-    const classOptions = classes.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    limitSel.innerHTML = '<option value="">-- Select --</option>';
+    classes.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c; o.textContent = c;
+      limitSel.appendChild(o);
+    });
+    if(prev) limitSel.value = prev;
+  }
 
-    const limitsHTML = Object.entries(db.classLimits||{}).length
-      ? Object.entries(db.classLimits).map(([cls,max])=>{
+  // Populate limits display
+  const limEl = document.getElementById('limitsDisplay');
+  if(limEl){
+    const entries = Object.entries(db.classLimits || {});
+    limEl.innerHTML = entries.length
+      ? entries.map(([cls,max]) => {
           const count = db.students.filter(s=>s.class===cls).length;
-          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:#f8fafc;border-radius:7px;margin-bottom:5px;font-size:12px;border:1px solid #e2e8f0;">
+          return `<div style="display:flex;justify-content:space-between;padding:7px 10px;background:#f8fafc;border-radius:7px;margin-bottom:5px;font-size:12px;">
             <strong>${esc(cls)}</strong>
-            <span style="color:${count>=max?'#ef4444':'#10b981'};font-weight:700;">${count}/${max}</span>
+            <span style="color:${count>=max?'#ef4444':'#10b981'};">${count}/${max}</span>
           </div>`;
         }).join('')
-      : '<p style="font-size:11px;color:#94a3b8;margin-top:6px;">No limits set yet.</p>';
+      : '<p style="font-size:11px;color:#94a3b8;">No limits set.</p>';
+  }
 
-    const logoVal = appSettings.schoolLogo || '';
-    const logoPreviewHTML = logoVal
-      ? `<img src="${logoVal}" style="width:100%;height:100%;object-fit:cover;border-radius:9px;"/>`
-      : `<span style="font-size:26px;">&#127978;</span>`;
-
-    container.innerHTML = diag + `
-      <div style="background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:16px;">
-        <div style="padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;font-weight:700;color:#1e293b;">&#128273; Admin Credentials</div>
-        <div style="padding:14px 16px;">
-          <div style="background:#fef3c7;border:1px solid #fde68a;color:#92400e;padding:9px 12px;border-radius:9px;font-size:12px;margin-bottom:12px;">&#9888;&#65039; Will log you out after saving changes.</div>
-          <div style="margin-bottom:12px;">
-            <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px;text-transform:uppercase;">Recovery Email</label>
-            <input id="adminEmail" type="email" placeholder="admin@school.com" value="${esc(appSettings.adminEmail||'')}" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13px;color:#1e293b;background:#fff;box-sizing:border-box;"/>
-            <small style="color:#64748b;font-size:10px;display:block;margin-top:3px;">Used for forgot-password recovery.</small>
-          </div>
-          <div style="margin-bottom:12px;">
-            <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px;text-transform:uppercase;">Current Password</label>
-            <input id="adminCurrentPass" type="password" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13px;color:#1e293b;background:#fff;box-sizing:border-box;"/>
-          </div>
-          <div style="margin-bottom:12px;">
-            <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px;text-transform:uppercase;">New Username</label>
-            <input id="adminNewUser" type="text" value="${esc(appSettings.adminUser||'')}" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13px;color:#1e293b;background:#fff;box-sizing:border-box;"/>
-          </div>
-          <div style="margin-bottom:12px;">
-            <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px;text-transform:uppercase;">New Password</label>
-            <input id="adminNewPass" type="password" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13px;color:#1e293b;background:#fff;box-sizing:border-box;"/>
-          </div>
-          <div style="margin-bottom:12px;">
-            <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px;text-transform:uppercase;">Confirm Password</label>
-            <input id="adminConfirmPass" type="password" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13px;color:#1e293b;background:#fff;box-sizing:border-box;"/>
-          </div>
-          <button onclick="changeAdminCreds()" style="padding:9px 18px;background:#4f46e5;color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;">&#128190; Update Credentials</button>
-        </div>
-      </div>
-
-      <div style="background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:16px;">
-        <div style="padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;font-weight:700;color:#1e293b;">&#127979; School Logo</div>
-        <div style="padding:14px 16px;">
-          <div style="background:#dbeafe;border:1px solid #bfdbfe;color:#1e40af;padding:9px 12px;border-radius:9px;font-size:12px;margin-bottom:12px;">&#8505;&#65039; School name is set by KipsTec developer only.</div>
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
-            <div id="logoPreviewWrap" style="width:56px;height:56px;border-radius:11px;background:#f1f5f9;border:2px dashed #e2e8f0;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">${logoPreviewHTML}</div>
-            <div style="display:flex;flex-direction:column;gap:6px;">
-              <input type="file" id="logoUploadInput" accept="image/*" style="display:none;" onchange="handleLogoUpload(event)"/>
-              <button onclick="document.getElementById('logoUploadInput').click()" style="padding:7px 14px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">&#128193; Upload Logo</button>
-              <button onclick="removeLogo()" style="padding:7px 14px;background:#fee2e2;color:#991b1b;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">&#128465;&#65039; Remove</button>
-            </div>
-          </div>
-          <button onclick="saveLogo()" style="padding:9px 18px;background:#4f46e5;color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;">&#128190; Save Logo</button>
-        </div>
-      </div>
-
-      <div style="background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:16px;">
-        <div style="padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;font-weight:700;color:#1e293b;">&#128274; Class Registration Limits</div>
-        <div style="padding:14px 16px;">
-          <div style="background:#dbeafe;border:1px solid #bfdbfe;color:#1e40af;padding:9px 12px;border-radius:9px;font-size:12px;margin-bottom:12px;">&#8505;&#65039; Set the maximum number of students allowed per class.</div>
-          <div style="margin-bottom:12px;">
-            <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px;text-transform:uppercase;">Class</label>
-            <select id="limitClass" onchange="loadLimitVal()" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13px;background:#fff;color:#1e293b;box-sizing:border-box;">
-              <option value="">-- Select Class --</option>
-              ${classOptions}
-            </select>
-          </div>
-          <div style="margin-bottom:12px;">
-            <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px;text-transform:uppercase;">Max Students</label>
-            <input id="limitVal" type="number" placeholder="e.g. 40" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13px;color:#1e293b;background:#fff;box-sizing:border-box;"/>
-          </div>
-          <button onclick="saveClassLimit()" style="padding:9px 18px;background:#4f46e5;color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;">&#128190; Save Limit</button>
-          <div id="limitsDisplay" style="margin-top:14px;">${limitsHTML}</div>
-        </div>
-      </div>
-
-      <div style="background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.08);border-top:3px solid #ef4444;margin-bottom:16px;">
-        <div style="padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:14px;font-weight:700;color:#1e293b;">&#9888;&#65039; Danger Zone</div>
-        <div style="padding:14px 16px;">
-          <div style="background:#fee2e2;border:1px solid #fecaca;color:#991b1b;padding:9px 12px;border-radius:9px;font-size:12px;margin-bottom:12px;">&#128680; These actions are permanent and cannot be undone.</div>
-          <button onclick="clearAllResults()" style="padding:9px 18px;background:#ef4444;color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;width:100%;">&#128465;&#65039; Clear ALL Results</button>
-        </div>
-      </div>
-    `;
-
-    tempLogo = appSettings.schoolLogo || '';
-
-  }catch(err){
-    console.error('renderAdminSettings error:', err);
-    container.innerHTML = `<div style="padding:20px;background:#fee2e2;border-radius:12px;color:#991b1b;font-size:13px;">
-      ⚠️ Settings failed to load: ${err.message}<br/><br/>
-      <button onclick="renderAdminSettings()" style="padding:8px 16px;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer;">Retry</button>
-    </div>`;
+  // Restore logo preview
+  if(appSettings.schoolLogo){
+    tempLogo = appSettings.schoolLogo;
+    applyLogoEl('logoPreviewImg','logoPreviewPlaceholder', appSettings.schoolLogo);
   }
 }
 
