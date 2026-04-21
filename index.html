@@ -5,33 +5,6 @@
 <title>CBT System — KipsTec</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
 
-<!-- ═══ PWA META ═══ -->
-<meta name="application-name" content="KipsTec CBT"/>
-<meta name="description" content="Computer Based Testing System by KipsTec"/>
-<meta name="theme-color" content="#1e1b4b"/>
-<meta name="mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-<meta name="apple-mobile-web-app-title" content="KipsTec CBT"/>
-<meta name="msapplication-TileColor" content="#1e1b4b"/>
-<meta name="msapplication-tap-highlight" content="no"/>
-
-<!-- PWA manifest injected dynamically below via JS -->
-<link id="pwaManifest" rel="manifest"/>
-<style>
-:root{
-  --primary:#4f46e5;--primary-dark:#3730a3;--primary-light:#e0e7ff;
-  --success:#10b981;--danger:#ef4444;--warning:#f59e0b;
-  --dark:#1e1b4b;--shadow:0 4px 6px -1px rgba(0,0,0,0.1);
-  --shadow-lg:0 20px 25px -5px rgba(0,0,0,0.1);
-  --radius:12px;--radius-lg:18px;--sidebar-w:240px;
-}
-*{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh;}
-::-webkit-scrollbar{width:5px;height:5px;}
-::-webkit-scrollbar-thumb{background:#c7d2fe;border-radius:3px;}
-
-
 /* ── LAYOUT ── */
 .admin-shell{display:flex;min-height:100vh;}
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:199;}
@@ -3943,35 +3916,6 @@ Object.assign(window,{
   }
 })();
 
-// ═══════════════════════════════════════
-//  PWA — ONLINE / OFFLINE DETECTION
-// ═══════════════════════════════════════
-(function setupOfflineDetection(){
-  const banner = document.getElementById('pwaOfflineBanner');
-  if(!banner) return;
-
-  function update(){
-    if(!navigator.onLine){
-      banner.style.display = 'block';
-      // Warn student mid-exam so they don't panic
-      if(typeof examState !== 'undefined' && examState && !examState.submitted){
-        if(typeof toast === 'function')
-          toast('Connection Lost','Your exam progress is saved locally. It will submit when you reconnect.','warning');
-      }
-    } else {
-      if(banner.style.display === 'block'){
-        // Was offline, now back online
-        if(typeof toast === 'function')
-          toast('Back Online','Connection restored ✅','success');
-      }
-      banner.style.display = 'none';
-    }
-  }
-
-  window.addEventListener('online',  update);
-  window.addEventListener('offline', update);
-  update();
-})();
 </script>
 
 </body>
