@@ -79,6 +79,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f1f5f9;color:#1e293
 /* ── PAGES ── */
 .page{padding:18px;display:none;}
 .page.active{display:block;}
+/* Settings page uses flex internally — must not be constrained to display:block */
+#apage-settings.active{display:block;}
+#apage-settings.active #settingsGrid{display:flex;}
 
 /* ── STATS ── */
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:20px;}
@@ -789,16 +792,16 @@ pointer-events:none;}
             <select class="form-control" id="ansClassFilter" onchange="refreshAnsSubjects();renderAnswerScripts()" style="font-size:12px;"><option value="all">All Classes</option></select>
             <select class="form-control" id="ansSubjectFilter" onchange="renderAnswerScripts()" style="font-size:12px;"><option value="all">All Subjects</option></select>
           </div>
-<div id="printArea">
+       <div id="printArea">
   <div id="answerScriptsList"></div>
 </div>
-        </div>
       </div>
     </div>
+      </div>
 
     <!-- SETTINGS -->
-<div id="apage-settings" class="page">
-<div id="settingsGrid" style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;">
+    <div id="apage-settings" class="page">
+      <div id="settingsGrid" style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;width:100%;">
 
         <!-- Admin Credentials -->
         <div class="section-card" style="flex:1;min-width:270px;">
@@ -1472,6 +1475,27 @@ async function verifyDevPin(){
   }
 }
 
+
+// ═══════════════════════════════════════
+//  LOAD DEV CONFIG (always runs — independent of school activation)
+// ═══════════════════════════════════════
+async function loadDevConfig(){
+  try{
+    const { data, error } = await SB
+      .from('developerconfig')
+      .select('username, password, unlock_pin')
+      .eq('is_active', true)
+      .single();
+
+    if(error || !data) return;
+
+    devConfig.username  = data.username  || '';
+    devConfig.password  = data.password  || '';
+    devConfig.unlockPin = data.unlock_pin || '';
+  }catch(err){
+    console.warn('loadDevConfig failed:', err);
+  }
+}
 
 // ═══════════════════════════════════════
 //  LOAD APP SETTINGS (NEW - fixes license issue on reload)
@@ -2715,9 +2739,12 @@ function showAdminPage(page,navEl){
   if(page==='results'){refreshResSubjects();renderResults();}
   if(page==='answers'){refreshAnsSubjects();renderAnswerScripts();}
   if(page==='settings'){
-    // Force browser reflow AFTER the page becomes visible
-    // This fixes mobile Chrome's CSS grid collapse bug when switching from display:none
-    requestAnimationFrame(()=>{ renderAdminSettings(); });
+    // Double requestAnimationFrame: first frame lets browser apply display:block,
+    // second frame lets it finish layout calculation, THEN we inject content.
+    // This reliably fixes mobile Chrome's flex/grid collapse after display:none→block.
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{ renderAdminSettings(); });
+    });
   }
 }
 
@@ -3564,6 +3591,9 @@ applyResponsiveLayouts();
 // ═══════════════════════════════════════
 (async function init(){
 
+// Always load dev credentials first — works even with no license activated
+await loadDevConfig();
+
 // 🔐 NEW: Verify activation FIRST
 await verifyActivation();
 
@@ -3605,23 +3635,22 @@ await loadAllDevData();
 
       // ADMIN
       if(currentUser.role === 'admin'){
-  if(!currentSchoolId){
-    toast('Session expired', 'Please login again', 'warning');
-    localStorage.clear();
-    location.reload();
-    return;
-  }
+        if(!currentSchoolId){
+          toast('Session expired', 'Please login again', 'warning');
+          localStorage.clear();
+          location.reload();
+          return;
+        }
 
-  document.getElementById('adminLayout').classList.remove('hidden');
-  document.getElementById('adminSidebarName').textContent = appSettings.adminUser || 'Admin';
-  document.getElementById('adminAvatar').textContent = (appSettings.adminUser?.[0] || 'A').toUpperCase();
+        document.getElementById('adminLayout').classList.remove('hidden');
+        document.getElementById('adminSidebarName').textContent = appSettings.adminUser || 'Admin';
+        document.getElementById('adminAvatar').textContent = (appSettings.adminUser?.[0] || 'A').toUpperCase();
 
-  await loadDB();   // ← THIS is the missing line
-  applyBranding();
-  renderAllAdmin();
-  startMonitorRefresh();
-  return;
-}
+        applyBranding();
+        renderAllAdmin();
+        startMonitorRefresh();
+        return;
+      }
 
       // STUDENT
       if(currentUser.role === 'student'){
@@ -3692,7 +3721,7 @@ populateRegClasses();
 // Global bindings
 Object.assign(window,{
   showLicensePage,activateLicense,switchAuthTab,checkNameAvail,updateSlotInfo,doRegister,doLogin,doLogout,
-  showForgotPassword,sendForgotPassword,populateLoginClasses,
+  showForgotPassword,sendForgotPassword,populateLoginClasses,loadDevConfig,
   showDevPage,renderDevDashboard,renderLicenseKeys,renderDevSchools,renderDevMonitor,renderDevSettings,
   previewGenerateKey,createLicenseKey,revokeKey,openEditSchool,saveSchoolDetails,changeDevCreds,devRefreshAll,
   showAdminPage,switchTab,renderMonitor,
