@@ -4,6 +4,20 @@
 <meta charset="utf-8"/>
 <title>CBT System — KipsTec</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+
+<!-- ═══ PWA META ═══ -->
+<meta name="application-name" content="KipsTec CBT"/>
+<meta name="description" content="Computer Based Testing System by KipsTec"/>
+<meta name="theme-color" content="#1e1b4b"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="KipsTec CBT"/>
+<meta name="msapplication-TileColor" content="#1e1b4b"/>
+<meta name="msapplication-tap-highlight" content="no"/>
+
+<!-- PWA manifest injected dynamically below via JS -->
+<link id="pwaManifest" rel="manifest"/>
 <style>
 :root{
   --primary:#4f46e5;--primary-dark:#3730a3;--primary-light:#e0e7ff;
@@ -16,6 +30,7 @@
 body{font-family:'Segoe UI',system-ui,sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh;}
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-thumb{background:#c7d2fe;border-radius:3px;}
+
 
 /* ── LAYOUT ── */
 .admin-shell{display:flex;min-height:100vh;}
@@ -774,65 +789,81 @@ pointer-events:none;}
             <select class="form-control" id="ansClassFilter" onchange="refreshAnsSubjects();renderAnswerScripts()" style="font-size:12px;"><option value="all">All Classes</option></select>
             <select class="form-control" id="ansSubjectFilter" onchange="renderAnswerScripts()" style="font-size:12px;"><option value="all">All Subjects</option></select>
           </div>
-       <div id="printArea">
+<div id="printArea">
   <div id="answerScriptsList"></div>
 </div>
+        </div>
       </div>
     </div>
 
     <!-- SETTINGS -->
-    <div id="apage-settings" class="page">
-      <div>
-        <div class="section-card">
+<div id="apage-settings" class="page">
+<div id="settingsGrid" style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;">
+
+        <!-- Admin Credentials -->
+        <div class="section-card" style="flex:1;min-width:270px;">
           <div class="section-header"><h3>🔑 Admin Credentials</h3></div>
           <div class="section-body">
             <div class="alert alert-warning">Will log you out after change.</div>
-            <div class="form-group"><label class="form-label">Recovery Email</label><input class="form-control" type="email" id="adminEmail" placeholder="admin@school.com"/><small style="color:#64748b;font-size:10px;margin-top:3px;display:block;">Used for forgot-password recovery.</small></div>
+            <div class="form-group">
+              <label class="form-label">Recovery Email</label>
+              <input class="form-control" type="email" id="adminEmail" placeholder="admin@school.com"/>
+              <small style="color:#64748b;font-size:10px;margin-top:3px;display:block;">Used for forgot-password recovery.</small>
+            </div>
             <div class="form-group"><label class="form-label">Current Password</label><input class="form-control" type="password" id="adminCurrentPass"/></div>
             <div class="form-group"><label class="form-label">New Username</label><input class="form-control" id="adminNewUser"/></div>
             <div class="form-group"><label class="form-label">New Password</label><input class="form-control" type="password" id="adminNewPass"/></div>
-            <div class="form-group"><label class="form-label">Confirm</label><input class="form-control" type="password" id="adminConfirmPass"/></div>
-            <button class="btn btn-primary" onclick="changeAdminCreds()">💾 Update</button>
+            <div class="form-group"><label class="form-label">Confirm Password</label><input class="form-control" type="password" id="adminConfirmPass"/></div>
+            <button class="btn btn-primary" onclick="changeAdminCreds()">💾 Update Credentials</button>
           </div>
         </div>
-        <div class="section-card">
+
+        <!-- School Logo -->
+        <div class="section-card" style="flex:1;min-width:270px;">
           <div class="section-header"><h3>🏫 School Logo</h3></div>
           <div class="section-body">
             <div class="alert alert-info">ℹ️ School name is set by KipsTec developer only.</div>
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
-              <div id="logoPreviewWrap" style="width:56px;height:56px;border-radius:11px;background:#f1f5f9;border:2px dashed #e2e8f0;display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;">
+              <div id="logoPreviewWrap" style="width:56px;height:56px;border-radius:11px;background:#f1f5f9;border:2px dashed #e2e8f0;display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;flex-shrink:0;">
                 <img id="logoPreviewImg" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:9px;"/>
                 <span id="logoPreviewPlaceholder">🏫</span>
               </div>
-              <div>
+              <div style="display:flex;flex-direction:column;gap:6px;">
                 <input type="file" id="logoUploadInput" accept="image/*" style="display:none;" onchange="handleLogoUpload(event)"/>
                 <button class="btn btn-secondary btn-sm" onclick="document.getElementById('logoUploadInput').click()">📁 Upload Logo</button>
-                <button class="btn btn-danger btn-sm" onclick="removeLogo()" style="margin-top:6px;">🗑️ Remove</button>
+                <button class="btn btn-danger btn-sm" onclick="removeLogo()">🗑️ Remove Logo</button>
               </div>
             </div>
             <button class="btn btn-primary" onclick="saveLogo()">💾 Save Logo</button>
           </div>
         </div>
-        <div class="section-card">
-          <div class="section-header"><h3>🔒 Class Limits</h3></div>
+
+        <!-- Class Limits -->
+        <div class="section-card" style="flex:1;min-width:270px;">
+          <div class="section-header"><h3>🔒 Class Registration Limits</h3></div>
           <div class="section-body">
-            <div class="form-group"><label class="form-label">Class</label>
+            <div class="alert alert-info">Limit how many students can register per class.</div>
+            <div class="form-group">
+              <label class="form-label">Class</label>
               <select class="form-control" id="limitClass" onchange="loadLimitVal()" style="font-size:12px;">
-                <option value="">-- Select --</option>
+                <option value="">-- Select Class --</option>
               </select>
             </div>
-            <div class="form-group"><label class="form-label">Max Students</label><input class="form-control" type="number" id="limitVal"/></div>
-            <button class="btn btn-primary" onclick="saveClassLimit()">💾 Save</button>
+            <div class="form-group"><label class="form-label">Max Students</label><input class="form-control" type="number" id="limitVal" placeholder="e.g. 40"/></div>
+            <button class="btn btn-primary" onclick="saveClassLimit()">💾 Save Limit</button>
             <div style="margin-top:14px;" id="limitsDisplay"></div>
           </div>
         </div>
-        <div class="section-card" style="border-top:3px solid #ef4444;">
+
+        <!-- Danger Zone -->
+        <div class="section-card" style="flex:1;min-width:270px;border-top:3px solid #ef4444;">
           <div class="section-header"><h3>⚠️ Danger Zone</h3></div>
           <div class="section-body">
-            <div class="alert alert-danger">Irreversible actions!</div>
-            <button class="btn btn-danger" onclick="clearAllResults()">🗑️ Clear ALL Results</button>
+            <div class="alert alert-danger">These actions are permanent and cannot be undone.</div>
+            <button class="btn btn-danger" style="width:100%;" onclick="clearAllResults()">🗑️ Clear ALL Results</button>
           </div>
         </div>
+
       </div>
     </div>
 
@@ -1443,27 +1474,6 @@ async function verifyDevPin(){
 
 
 // ═══════════════════════════════════════
-//  LOAD DEV CONFIG (always runs — independent of school activation)
-// ═══════════════════════════════════════
-async function loadDevConfig(){
-  try{
-    const { data, error } = await SB
-      .from('developerconfig')
-      .select('username, password, unlock_pin')
-      .eq('is_active', true)
-      .single();
-
-    if(error || !data) return;
-
-    devConfig.username  = data.username  || '';
-    devConfig.password  = data.password  || '';
-    devConfig.unlockPin = data.unlock_pin || '';
-  }catch(err){
-    console.warn('loadDevConfig failed:', err);
-  }
-}
-
-// ═══════════════════════════════════════
 //  LOAD APP SETTINGS (NEW - fixes license issue on reload)
 // ═══════════════════════════════════════
 async function loadAppSettings(){
@@ -1785,13 +1795,9 @@ async function loadDB(){
     return;
   }
 
-  // Show a visible loading indicator
-  const pageTitle = document.getElementById('adminPageTitle');
-  if(pageTitle) pageTitle.textContent = 'Loading...';
-
   try{
     const [setRes, stuRes, qRes, scRes, keyRes, subRes] = await Promise.all([
-      SB.from('settings').select('*').eq('school_id',currentSchoolId),
+      SB.from('settings').select('*').eq('school_id',currentSchoolId).single(),
       SB.from('students').select('*').eq('school_id',currentSchoolId),
       SB.from('questions').select('*').eq('school_id',currentSchoolId),
       SB.from('scores').select('*').eq('school_id',currentSchoolId),
@@ -1799,38 +1805,20 @@ async function loadDB(){
       SB.from('subjects').select('*').eq('school_id',currentSchoolId)
     ]);
 
-    // Show ANY Supabase errors visibly so they can be diagnosed
-    const errors = [
-      setRes.error && `Settings: ${setRes.error.message}`,
-      stuRes.error && `Students: ${stuRes.error.message}`,
-      qRes.error   && `Questions: ${qRes.error.message}`,
-      scRes.error  && `Scores: ${scRes.error.message}`,
-      subRes.error && `Subjects: ${subRes.error.message}`,
-    ].filter(Boolean);
-
-    if(errors.length){
-      alert('Supabase Error:\n\n' + errors.join('\n'));
-      console.error('loadDB errors:', errors);
+    if(setRes.error){
+      toast('Settings Error', setRes.error.message, 'error');
+      return;
     }
 
-    // Settings — use first row if exists, don't crash if missing
-    const settingsRow = (setRes.data && setRes.data.length > 0) ? setRes.data[0] : null;
-    if(settingsRow){
-      db.classLimits = settingsRow.classlimits || {};
-      Object.assign(appSettings, settingsRow.appsettings || {});
-      if(settingsRow.devconfig) Object.assign(devConfig, settingsRow.devconfig);
-      toast('DB','Settings row loaded ✅','success');
-    } else {
-      // No settings row yet — create one so future saves work
-      console.warn('No settings row found — will create on next save');
-      isDataLoaded = true; // Allow saves to proceed
-      toast('DB','No settings row found ⚠️','warning');
-    }
+    if(setRes.data){
+      db.classLimits = setRes.data.classlimits || {};
+      const s = setRes.data.appsettings || {};
+      Object.assign(appSettings, s);
 
-    // Log errors from other tables visibly
-    if(subRes.error) toast('Subjects Error', subRes.error.message, 'error');
-    if(stuRes.error) toast('Students Error', stuRes.error.message, 'error');
-    if(qRes.error)   toast('Questions Error', qRes.error.message, 'error');
+      if(setRes.data.devconfig){
+        Object.assign(devConfig, setRes.data.devconfig);
+      }
+    }
 
     // Subjects now come from their own table
     db.subjects = (subRes.data || []).map(s => ({
@@ -1957,13 +1945,11 @@ async function loadStudentData(){
 //  COMMIT
 // ═══════════════════════════════════════
 async function commitSettings() {
-  if (!currentSchoolId) return;
-  // Allow save even if isDataLoaded is false — settings row may need to be created fresh
-  isDataLoaded = true;
+  if (!currentSchoolId || !isDataLoaded) return;
 
   const { error } = await SB.from('settings').upsert([{
     school_id: currentSchoolId,
-    classlimits: db.classLimits || {},
+    classlimits: db.classLimits,
     appsettings: appSettings,
     devconfig: devConfig
   }], {
@@ -1974,7 +1960,7 @@ async function commitSettings() {
     console.error("Supabase Error:", error);
     toast('Save Failed', error.message, 'error');
   } else {
-    toast('Saved', 'Settings synced online ✅', 'success');
+    toast('Success', 'Settings synced online', 'success');
   }
 }
 
@@ -2728,7 +2714,11 @@ function showAdminPage(page,navEl){
   if(page==='monitor')renderMonitor();
   if(page==='results'){refreshResSubjects();renderResults();}
   if(page==='answers'){refreshAnsSubjects();renderAnswerScripts();}
-  if(page==='settings') renderAdminSettings();
+  if(page==='settings'){
+    // Force browser reflow AFTER the page becomes visible
+    // This fixes mobile Chrome's CSS grid collapse bug when switching from display:none
+    requestAnimationFrame(()=>{ renderAdminSettings(); });
+  }
 }
 
 function switchTab(group,tab,el){
@@ -3289,44 +3279,32 @@ function printAnswerScripts(){
 //  ADMIN SETTINGS
 // ═══════════════════════════════════════
 function renderAdminSettings(){
-  // Populate email field
+  // Populate recovery email field
   const emailEl = document.getElementById('adminEmail');
   if(emailEl) emailEl.value = appSettings.adminEmail || '';
 
-  // Populate limits class dropdown from subjects
-  const limitSel = document.getElementById('limitClass');
-  if(limitSel){
-    const prev = limitSel.value;
+  // Populate limits class dropdown from actual subjects
+  const limitClassSel = document.getElementById('limitClass');
+  if(limitClassSel){
     const classes = [...new Set(db.subjects.map(s=>s.class))].sort();
-    limitSel.innerHTML = '<option value="">-- Select --</option>';
-    classes.forEach(c => {
-      const o = document.createElement('option');
-      o.value = c; o.textContent = c;
-      limitSel.appendChild(o);
-    });
-    if(prev) limitSel.value = prev;
+    const prev = limitClassSel.value;
+    limitClassSel.innerHTML = `<option value="">-- Select --</option>`;
+    classes.forEach(c => limitClassSel.insertAdjacentHTML('beforeend',`<option value="${c}">${c}</option>`));
+    if(prev) limitClassSel.value = prev;
   }
 
-  // Populate limits display
-  const limEl = document.getElementById('limitsDisplay');
+  const limEl=document.getElementById('limitsDisplay');
   if(limEl){
-    const entries = Object.entries(db.classLimits || {});
-    limEl.innerHTML = entries.length
-      ? entries.map(([cls,max]) => {
-          const count = db.students.filter(s=>s.class===cls).length;
-          return `<div style="display:flex;justify-content:space-between;padding:7px 10px;background:#f8fafc;border-radius:7px;margin-bottom:5px;font-size:12px;">
-            <strong>${esc(cls)}</strong>
-            <span style="color:${count>=max?'#ef4444':'#10b981'};">${count}/${max}</span>
-          </div>`;
-        }).join('')
-      : '<p style="font-size:11px;color:#94a3b8;">No limits set.</p>';
+    const entries=Object.entries(db.classLimits);
+    limEl.innerHTML=entries.length?entries.map(([cls,max])=>{
+      const count=db.students.filter(s=>s.class===cls).length;
+      return`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:#f8fafc;border-radius:7px;margin-bottom:5px;font-size:12px;">
+        <strong>${cls}</strong>
+        <span style="color:${count>=max?'#ef4444':'#10b981'};">${count}/${max}</span>
+      </div>`;
+    }).join(''):'<p style="font-size:11px;color:#94a3b8;">No limits set.</p>';
   }
-
-  // Restore logo preview
-  if(appSettings.schoolLogo){
-    tempLogo = appSettings.schoolLogo;
-    applyLogoEl('logoPreviewImg','logoPreviewPlaceholder', appSettings.schoolLogo);
-  }
+  if(appSettings.schoolLogo){tempLogo=appSettings.schoolLogo;applyLogoEl('logoPreviewImg','logoPreviewPlaceholder',appSettings.schoolLogo);}
 }
 
 function loadLimitVal(){
@@ -3586,9 +3564,6 @@ applyResponsiveLayouts();
 // ═══════════════════════════════════════
 (async function init(){
 
-// Always load dev credentials first — works even with no license activated
-await loadDevConfig();
-
 // 🔐 NEW: Verify activation FIRST
 await verifyActivation();
 
@@ -3630,22 +3605,23 @@ await loadAllDevData();
 
       // ADMIN
       if(currentUser.role === 'admin'){
-        if(!currentSchoolId){
-          toast('Session expired', 'Please login again', 'warning');
-          localStorage.clear();
-          location.reload();
-          return;
-        }
+  if(!currentSchoolId){
+    toast('Session expired', 'Please login again', 'warning');
+    localStorage.clear();
+    location.reload();
+    return;
+  }
 
-        document.getElementById('adminLayout').classList.remove('hidden');
-        document.getElementById('adminSidebarName').textContent = appSettings.adminUser || 'Admin';
-        document.getElementById('adminAvatar').textContent = (appSettings.adminUser?.[0] || 'A').toUpperCase();
+  document.getElementById('adminLayout').classList.remove('hidden');
+  document.getElementById('adminSidebarName').textContent = appSettings.adminUser || 'Admin';
+  document.getElementById('adminAvatar').textContent = (appSettings.adminUser?.[0] || 'A').toUpperCase();
 
-        applyBranding();
-        renderAllAdmin();
-        startMonitorRefresh();
-        return;
-      }
+  await loadDB();   // ← THIS is the missing line
+  applyBranding();
+  renderAllAdmin();
+  startMonitorRefresh();
+  return;
+}
 
       // STUDENT
       if(currentUser.role === 'student'){
@@ -3716,7 +3692,7 @@ populateRegClasses();
 // Global bindings
 Object.assign(window,{
   showLicensePage,activateLicense,switchAuthTab,checkNameAvail,updateSlotInfo,doRegister,doLogin,doLogout,
-  showForgotPassword,sendForgotPassword,populateLoginClasses,loadDevConfig,
+  showForgotPassword,sendForgotPassword,populateLoginClasses,
   showDevPage,renderDevDashboard,renderLicenseKeys,renderDevSchools,renderDevMonitor,renderDevSettings,
   previewGenerateKey,createLicenseKey,revokeKey,openEditSchool,saveSchoolDetails,changeDevCreds,devRefreshAll,
   showAdminPage,switchTab,renderMonitor,
@@ -3731,5 +3707,233 @@ Object.assign(window,{
   openDevUnlockDialog,closeDevUnlockDialog,verifyDevPin
 });
 </script>
+<!-- ═══ PWA INSTALL BANNER ═══ -->
+<div id="pwaInstallBanner" style="
+  display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+  background:linear-gradient(135deg,#1e1b4b,#4f46e5);color:#fff;
+  padding:12px 18px;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,0.35);
+  z-index:99998;align-items:center;gap:12px;
+  max-width:360px;width:calc(100% - 32px);font-family:'Segoe UI',system-ui,sans-serif;
+">
+  <div style="font-size:26px;">📲</div>
+  <div style="flex:1;">
+    <div style="font-size:13px;font-weight:700;">Install KipsTec CBT</div>
+    <div style="font-size:11px;opacity:.8;margin-top:2px;">Add to home screen for offline access</div>
+  </div>
+  <button id="pwaInstallBtn" style="
+    background:#fff;color:#4f46e5;border:none;padding:7px 14px;
+    border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;
+  ">Install</button>
+  <button id="pwaInstallDismiss" style="
+    background:none;border:none;color:rgba(255,255,255,.6);
+    font-size:18px;cursor:pointer;padding:0 2px;line-height:1;
+  ">✕</button>
+</div>
+
+<!-- ═══ PWA OFFLINE BANNER ═══ -->
+<div id="pwaOfflineBanner" style="
+  display:none;position:fixed;top:0;left:0;right:0;
+  background:#ef4444;color:#fff;text-align:center;
+  padding:8px;font-size:12px;font-weight:600;z-index:99997;
+">
+  📡 You are offline. Some features may be unavailable.
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//  PWA — MANIFEST (inline blob, no separate file needed)
+// ═══════════════════════════════════════
+(function injectManifest(){
+  const manifest = {
+    name: 'KipsTec CBT System',
+    short_name: 'KipsTec CBT',
+    description: 'Computer Based Testing System by KipsTec',
+    start_url: './',
+    display: 'standalone',
+    orientation: 'any',
+    background_color: '#1e1b4b',
+    theme_color: '#1e1b4b',
+    categories: ['education','productivity'],
+    icons: [
+      {
+        src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%234f46e5'/%3E%3Ctext x='256' y='340' font-size='260' text-anchor='middle' font-family='system-ui' fill='white'%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E",
+        sizes:'192x192', type:'image/svg+xml', purpose:'any maskable'
+      },
+      {
+        src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%234f46e5'/%3E%3Ctext x='256' y='340' font-size='260' text-anchor='middle' font-family='system-ui' fill='white'%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E",
+        sizes:'512x512', type:'image/svg+xml', purpose:'any maskable'
+      }
+    ]
+  };
+  const blob = new Blob([JSON.stringify(manifest)],{type:'application/json'});
+  const link = document.getElementById('pwaManifest');
+  if(link) link.href = URL.createObjectURL(blob);
+})();
+
+// ═══════════════════════════════════════
+//  PWA — SERVICE WORKER (inline blob, no sw.js file needed)
+// ═══════════════════════════════════════
+(function registerServiceWorker(){
+  if(!('serviceWorker' in navigator)) return;
+
+  const CACHE = 'kipstec-cbt-v1';
+
+  const swCode = `
+    const CACHE = '${CACHE}';
+
+    self.addEventListener('install', e => {
+      e.waitUntil(
+        caches.open(CACHE).then(cache =>
+          cache.addAll([self.location.origin + self.location.pathname])
+        ).catch(()=>{})
+      );
+      self.skipWaiting();
+    });
+
+    self.addEventListener('activate', e => {
+      e.waitUntil(
+        caches.keys().then(keys =>
+          Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+        )
+      );
+      self.clients.claim();
+    });
+
+    // Network-first: fresh data online, cached app shell offline
+    self.addEventListener('fetch', e => {
+      if(e.request.method !== 'GET') return;
+      // Never cache Supabase API calls
+      if(e.request.url.includes('supabase.co')) return;
+      // Never cache CDN scripts (xlsx, supabase-js) — they must load fresh
+      if(e.request.url.includes('cdn.jsdelivr.net')) return;
+
+      e.respondWith(
+        fetch(e.request)
+          .then(res => {
+            // Cache a fresh copy of the app shell on each successful load
+            if(res.ok){
+              const clone = res.clone();
+              caches.open(CACHE).then(cache => cache.put(e.request, clone));
+            }
+            return res;
+          })
+          .catch(() => caches.match(e.request))
+      );
+    });
+
+    self.addEventListener('message', e => {
+      if(e.data === 'skipWaiting') self.skipWaiting();
+    });
+  `;
+
+  const blob = new Blob([swCode],{type:'application/javascript'});
+  const swUrl = URL.createObjectURL(blob);
+
+  navigator.serviceWorker.register(swUrl, {scope:'./'})
+    .then(reg => {
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        nw.addEventListener('statechange', () => {
+          if(nw.state === 'installed' && navigator.serviceWorker.controller){
+            if(typeof toast === 'function')
+              toast('Update Available','Reload the app to get the latest version','warning');
+          }
+        });
+      });
+    })
+    .catch(err => console.warn('[PWA] SW registration failed:', err));
+})();
+
+// ═══════════════════════════════════════
+//  PWA — INSTALL PROMPT
+// ═══════════════════════════════════════
+(function setupInstallPrompt(){
+  let deferredPrompt = null;
+  const banner     = document.getElementById('pwaInstallBanner');
+  const installBtn = document.getElementById('pwaInstallBtn');
+  const dismissBtn = document.getElementById('pwaInstallDismiss');
+
+  // Already installed as standalone — hide everything
+  if(window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone){
+    return;
+  }
+
+  // Chrome / Edge / Android: capture the native install prompt
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if(sessionStorage.getItem('pwaDismissed')) return;
+    setTimeout(() => { if(banner) banner.style.display = 'flex'; }, 4000);
+  });
+
+  if(installBtn){
+    installBtn.addEventListener('click', async () => {
+      if(!deferredPrompt) return;
+      banner.style.display = 'none';
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if(outcome === 'accepted' && typeof toast === 'function')
+        toast('Installing…','KipsTec CBT added to your device 📲','success');
+      deferredPrompt = null;
+    });
+  }
+
+  if(dismissBtn){
+    dismissBtn.addEventListener('click', () => {
+      banner.style.display = 'none';
+      sessionStorage.setItem('pwaDismissed','1');
+    });
+  }
+
+  // iOS Safari: no beforeinstallprompt, show manual instructions instead
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if(isIos && !sessionStorage.getItem('pwaDismissed')){
+    setTimeout(() => {
+      if(!banner) return;
+      banner.style.display = 'flex';
+      if(installBtn){
+        installBtn.textContent = 'How to Install';
+        installBtn.onclick = () => alert(
+          'To install on iPhone/iPad:\n\n' +
+          '1. Tap the Share button (□↑) at the bottom of Safari\n' +
+          '2. Scroll down and tap "Add to Home Screen"\n' +
+          '3. Tap "Add" — done! 🎉'
+        );
+      }
+    }, 4000);
+  }
+})();
+
+// ═══════════════════════════════════════
+//  PWA — ONLINE / OFFLINE DETECTION
+// ═══════════════════════════════════════
+(function setupOfflineDetection(){
+  const banner = document.getElementById('pwaOfflineBanner');
+  if(!banner) return;
+
+  function update(){
+    if(!navigator.onLine){
+      banner.style.display = 'block';
+      // Warn student mid-exam so they don't panic
+      if(typeof examState !== 'undefined' && examState && !examState.submitted){
+        if(typeof toast === 'function')
+          toast('Connection Lost','Your exam progress is saved locally. It will submit when you reconnect.','warning');
+      }
+    } else {
+      if(banner.style.display === 'block'){
+        // Was offline, now back online
+        if(typeof toast === 'function')
+          toast('Back Online','Connection restored ✅','success');
+      }
+      banner.style.display = 'none';
+    }
+  }
+
+  window.addEventListener('online',  update);
+  window.addEventListener('offline', update);
+  update();
+})();
+</script>
+
 </body>
 </html>
