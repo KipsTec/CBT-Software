@@ -79,9 +79,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f1f5f9;color:#1e293
 /* ── PAGES ── */
 .page{padding:18px;display:none;}
 .page.active{display:block;}
-/* Settings page uses flex internally — must not be constrained to display:block */
-#apage-settings.active{display:block;}
-#apage-settings.active #settingsGrid{display:flex;}
 
 /* ── STATS ── */
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:20px;}
@@ -792,16 +789,16 @@ pointer-events:none;}
             <select class="form-control" id="ansClassFilter" onchange="refreshAnsSubjects();renderAnswerScripts()" style="font-size:12px;"><option value="all">All Classes</option></select>
             <select class="form-control" id="ansSubjectFilter" onchange="renderAnswerScripts()" style="font-size:12px;"><option value="all">All Subjects</option></select>
           </div>
-       <div id="printArea">
+<div id="printArea">
   <div id="answerScriptsList"></div>
 </div>
+        </div>
       </div>
     </div>
-      </div>
 
     <!-- SETTINGS -->
-    <div id="apage-settings" class="page">
-      <div id="settingsGrid" style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;width:100%;">
+<div id="apage-settings" class="page">
+<div id="settingsGrid" style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;">
 
         <!-- Admin Credentials -->
         <div class="section-card" style="flex:1;min-width:270px;">
@@ -1477,27 +1474,6 @@ async function verifyDevPin(){
 
 
 // ═══════════════════════════════════════
-//  LOAD DEV CONFIG (always runs — independent of school activation)
-// ═══════════════════════════════════════
-async function loadDevConfig(){
-  try{
-    const { data, error } = await SB
-      .from('developerconfig')
-      .select('username, password, unlock_pin')
-      .eq('is_active', true)
-      .single();
-
-    if(error || !data) return;
-
-    devConfig.username  = data.username  || '';
-    devConfig.password  = data.password  || '';
-    devConfig.unlockPin = data.unlock_pin || '';
-  }catch(err){
-    console.warn('loadDevConfig failed:', err);
-  }
-}
-
-// ═══════════════════════════════════════
 //  LOAD APP SETTINGS (NEW - fixes license issue on reload)
 // ═══════════════════════════════════════
 async function loadAppSettings(){
@@ -1505,28 +1481,31 @@ async function loadAppSettings(){
   if(!schoolId) return;
 
   try{
-    const { data, error } = await SB
-      .from('settings')
-      .select('*')
-      .eq('school_id', schoolId)
-      .single();
-
-    if(error || !data) return;
+    // Load school settings and devConfig in parallel
+    const [settingsRes, devRes] = await Promise.all([
+      SB.from('settings').select('*').eq('school_id', schoolId).single(),
+      SB.from('developerconfig').select('*').eq('is_active', true).single()
+    ]);
 
     // Restore appSettings from database
-    if(data.appsettings){
-      Object.assign(appSettings, data.appsettings);
+    if(!settingsRes.error && settingsRes.data){
+      if(settingsRes.data.appsettings){
+        Object.assign(appSettings, settingsRes.data.appsettings);
+      }
+      // Restore classlimits (still lives in settings row)
+      if(settingsRes.data.classlimits){
+        db.classLimits = settingsRes.data.classlimits;
+      }
     }
 
-    // Restore devConfig from database
-    if(data.devconfig){
-      Object.assign(devConfig, data.devconfig);
+    // Restore devConfig from dedicated developerconfig table
+    // This ensures developer can login from ANY school's browser
+    if(!devRes.error && devRes.data){
+      devConfig.username  = devRes.data.username;
+      devConfig.password  = devRes.data.password;
+      devConfig.unlockPin = devRes.data.unlock_pin;
     }
 
-    // Restore classlimits (still lives in settings row)
-    if(data.classlimits){
-      db.classLimits = data.classlimits;
-    }
     // NOTE: subjects are now in their own table — loaded by loadDB()/loadStudentData()
 
   }catch(err){
@@ -2739,12 +2718,9 @@ function showAdminPage(page,navEl){
   if(page==='results'){refreshResSubjects();renderResults();}
   if(page==='answers'){refreshAnsSubjects();renderAnswerScripts();}
   if(page==='settings'){
-    // Double requestAnimationFrame: first frame lets browser apply display:block,
-    // second frame lets it finish layout calculation, THEN we inject content.
-    // This reliably fixes mobile Chrome's flex/grid collapse after display:none→block.
-    requestAnimationFrame(()=>{
-      requestAnimationFrame(()=>{ renderAdminSettings(); });
-    });
+    // Force browser reflow AFTER the page becomes visible
+    // This fixes mobile Chrome's CSS grid collapse bug when switching from display:none
+    requestAnimationFrame(()=>{ renderAdminSettings(); });
   }
 }
 
@@ -3591,9 +3567,6 @@ applyResponsiveLayouts();
 // ═══════════════════════════════════════
 (async function init(){
 
-// Always load dev credentials first — works even with no license activated
-await loadDevConfig();
-
 // 🔐 NEW: Verify activation FIRST
 await verifyActivation();
 
@@ -3635,22 +3608,23 @@ await loadAllDevData();
 
       // ADMIN
       if(currentUser.role === 'admin'){
-        if(!currentSchoolId){
-          toast('Session expired', 'Please login again', 'warning');
-          localStorage.clear();
-          location.reload();
-          return;
-        }
+  if(!currentSchoolId){
+    toast('Session expired', 'Please login again', 'warning');
+    localStorage.clear();
+    location.reload();
+    return;
+  }
 
-        document.getElementById('adminLayout').classList.remove('hidden');
-        document.getElementById('adminSidebarName').textContent = appSettings.adminUser || 'Admin';
-        document.getElementById('adminAvatar').textContent = (appSettings.adminUser?.[0] || 'A').toUpperCase();
+  document.getElementById('adminLayout').classList.remove('hidden');
+  document.getElementById('adminSidebarName').textContent = appSettings.adminUser || 'Admin';
+  document.getElementById('adminAvatar').textContent = (appSettings.adminUser?.[0] || 'A').toUpperCase();
 
-        applyBranding();
-        renderAllAdmin();
-        startMonitorRefresh();
-        return;
-      }
+  await loadDB();   // ← THIS is the missing line
+  applyBranding();
+  renderAllAdmin();
+  startMonitorRefresh();
+  return;
+}
 
       // STUDENT
       if(currentUser.role === 'student'){
@@ -3721,7 +3695,7 @@ populateRegClasses();
 // Global bindings
 Object.assign(window,{
   showLicensePage,activateLicense,switchAuthTab,checkNameAvail,updateSlotInfo,doRegister,doLogin,doLogout,
-  showForgotPassword,sendForgotPassword,populateLoginClasses,loadDevConfig,
+  showForgotPassword,sendForgotPassword,populateLoginClasses,
   showDevPage,renderDevDashboard,renderLicenseKeys,renderDevSchools,renderDevMonitor,renderDevSettings,
   previewGenerateKey,createLicenseKey,revokeKey,openEditSchool,saveSchoolDetails,changeDevCreds,devRefreshAll,
   showAdminPage,switchTab,renderMonitor,
