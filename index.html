@@ -31,6 +31,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f1f5f9;color:#1e293
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-thumb{background:#c7d2fe;border-radius:3px;}
 
+
 /* ── LAYOUT ── */
 .admin-shell{display:flex;min-height:100vh;}
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:199;}
@@ -1177,6 +1178,12 @@ function shuffleArray(arr){
   return a;
 }
 
+// ── PASSWORD HASHING (SHA-256 via Web Crypto API) ──
+async function hashPassword(plain){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(plain));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
 function toggleVis(id,btn){
   const el=document.getElementById(id);if(!el)return;
   el.type=el.type==='password'?'text':'password';
@@ -1477,34 +1484,42 @@ async function verifyDevPin(){
 // ═══════════════════════════════════════
 async function loadAppSettings(){
   const schoolId = localStorage.getItem('school_id');
-  if(!schoolId) return;
 
   try{
-    // Load school settings and devConfig in parallel
-    const [settingsRes, devRes] = await Promise.all([
-      SB.from('settings').select('*').eq('school_id', schoolId).single(),
-      SB.from('developerconfig').select('*').eq('is_active', true).single()
-    ]);
+    // Always load devConfig from developerconfig table
+    // regardless of whether a school is activated
+    const { data: devData } = await SB
+      .from('developerconfig')
+      .select('*')
+      .eq('is_active', true)
+      .single();
+
+    if(devData){
+      devConfig.username  = devData.username;
+      devConfig.password  = devData.password;
+      devConfig.unlockPin = devData.unlock_pin;
+    }
+
+    // Only load school settings if a school is activated
+    if(!schoolId) return;
+
+    const { data, error } = await SB
+      .from('settings')
+      .select('*')
+      .eq('school_id', schoolId)
+      .single();
+
+    if(error || !data) return;
 
     // Restore appSettings from database
-    if(!settingsRes.error && settingsRes.data){
-      if(settingsRes.data.appsettings){
-        Object.assign(appSettings, settingsRes.data.appsettings);
-      }
-      // Restore classlimits (still lives in settings row)
-      if(settingsRes.data.classlimits){
-        db.classLimits = settingsRes.data.classlimits;
-      }
+    if(data.appsettings){
+      Object.assign(appSettings, data.appsettings);
     }
 
-    // Restore devConfig from dedicated developerconfig table
-    // This ensures developer can login from ANY school's browser
-    if(!devRes.error && devRes.data){
-      devConfig.username  = devRes.data.username;
-      devConfig.password  = devRes.data.password;
-      devConfig.unlockPin = devRes.data.unlock_pin;
+    // Restore classlimits (still lives in settings row)
+    if(data.classlimits){
+      db.classLimits = data.classlimits;
     }
-
     // NOTE: subjects are now in their own table — loaded by loadDB()/loadStudentData()
 
   }catch(err){
@@ -2162,16 +2177,17 @@ async function doRegister(){
   if(db.students.some(s=>s.username.toLowerCase()===user.toLowerCase())){msg.textContent='Username taken.';msg.style.color='#ef4444';return;}
 
   const id = uid();
+  const hashedPass = await hashPassword(pass);
   const {error}=await SB.from('students').insert([{
     id,
     school_id: currentSchoolId,
     username:user,
     name,
     class:cls,
-    password:pass
+    password:hashedPass
   }]);
   if(error){msg.textContent='Failed: '+error.message;msg.style.color='#ef4444';return;}
-  db.students.push({id,username:user,name,class:cls,password:pass});
+  db.students.push({id,username:user,name,class:cls,password:hashedPass});
   logActivity(`Registered: ${name} (${cls})`,'green');
   msg.textContent='✅ Registered! Login now.';msg.style.color='#10b981';
   toast('Registered!',`Welcome, ${name}!`,'success');
@@ -2231,7 +2247,7 @@ if(!savedSchoolId){
 currentSchoolId = savedSchoolId;
 
   // ── ADMIN LOGIN ──
-  if(user===appSettings.adminUser && pass===appSettings.adminPass){
+  if(user===appSettings.adminUser && await hashPassword(pass)===appSettings.adminPass){
     currentUser={role:'admin',username:user};
     localStorage.setItem('cbt_user',JSON.stringify(currentUser));
     
@@ -2262,7 +2278,7 @@ currentSchoolId = savedSchoolId;
     .select('*')
     .eq('school_id', currentSchoolId)
     .eq('username',user)
-    .eq('password',pass);
+    .eq('password', await hashPassword(pass));
     
   if(cls) query = query.eq('class',cls);
   
@@ -3076,9 +3092,10 @@ async function addStudent(){
   const user=document.getElementById('stuUser').value.trim();const pass=document.getElementById('stuPass').value.trim();
   if(!name||!cls||!user||!pass){toast('Fill all fields','','warning');return;}
   const id=uid();
-  const {error}=await SB.from('students').insert([{id, school_id: currentSchoolId, username:user,name,class:cls,password:pass}]);
+  const hashedPass = await hashPassword(pass);
+  const {error}=await SB.from('students').insert([{id, school_id: currentSchoolId, username:user,name,class:cls,password:hashedPass}]);
   if(error){toast('Failed',error.message,'error');return;}
-  db.students.push({id,school_id: currentSchoolId, username:user,name,class:cls,password:pass});
+  db.students.push({id,school_id: currentSchoolId, username:user,name,class:cls,password:hashedPass});
   ['stuName','stuClass','stuUser','stuPass'].forEach(i=>document.getElementById(i).value='');
   renderStudents();logActivity(`Student: ${name}`,'green');toast('Added',name,'success');
 }
@@ -3087,14 +3104,19 @@ function openEditStudent(id){
   const s=db.students.find(x=>x.id===id);if(!s)return;
   document.getElementById('editStuId').value=id;document.getElementById('editStuName').value=s.name;
   document.getElementById('editStuClass').value=s.class;document.getElementById('editStuUser').value=s.username;
-  document.getElementById('editStuPass').value=s.password;openModal('editStudentModal');
+  document.getElementById('editStuPass').value='';
+  document.getElementById('editStuPass').placeholder='Leave blank to keep current password';
+  openModal('editStudentModal');
 }
 
 async function saveEditStudent(){
   const id=document.getElementById('editStuId').value;const s=db.students.find(x=>x.id===id);if(!s)return;
   s.name=document.getElementById('editStuName').value.trim();s.class=document.getElementById('editStuClass').value.trim();
-  s.username=document.getElementById('editStuUser').value.trim();s.password=document.getElementById('editStuPass').value.trim();
-  const {error}=await SB.from('students').update({name:s.name,class:s.class,username:s.username,password:s.password}).eq('id',id);
+  s.username=document.getElementById('editStuUser').value.trim();
+  const rawPass=document.getElementById('editStuPass').value.trim();
+  const newPass = rawPass ? await hashPassword(rawPass) : s.password;
+  s.password = newPass;
+  const {error}=await SB.from('students').update({name:s.name,class:s.class,username:s.username,password:newPass}).eq('id',id);
   if(error){toast('Failed',error.message,'error');return;}
   closeModal('editStudentModal');renderStudents();toast('Updated','','success');
 }
@@ -3111,7 +3133,12 @@ function confirmDelStudent(id){
 async function importStudents(){
   const file=document.getElementById('stuImportFile').files[0];if(!file){toast('Select CSV','','warning');return;}
   const text=await file.text();const rows=text.trim().split('\n').slice(1);const toAdd=[];
-  rows.forEach(r=>{const[user,name,cls,pass]=r.split(',').map(c=>c.trim());if(!user||!name||!cls||!pass)return;toAdd.push({id:uid(),username:user,name,class:cls,password:pass});});
+  for(const r of rows){
+    const[user,name,cls,pass]=r.split(',').map(c=>c.trim());
+    if(!user||!name||!cls||!pass)continue;
+    const hashedPass = await hashPassword(pass);
+    toAdd.push({id:uid(),username:user,name,class:cls,password:hashedPass});
+  }
   if(!toAdd.length){toast('No valid rows','','warning');return;}
   const {error}=await SB.from('students').insert(toAdd.map(s=>({id:s.id, school_id: currentSchoolId, username:s.username,name:s.name,class:s.class,password:s.password})));
   if(error){toast('Failed',error.message,'error');return;}
@@ -3324,11 +3351,11 @@ async function changeAdminCreds(){
   const email=document.getElementById('adminEmail').value.trim();
   const cur=document.getElementById('adminCurrentPass').value;const nu=document.getElementById('adminNewUser').value.trim();
   const np=document.getElementById('adminNewPass').value;const cp=document.getElementById('adminConfirmPass').value;
-  if(cur!==appSettings.adminPass){toast('Wrong password','','error');return;}
+  if(await hashPassword(cur)!==appSettings.adminPass){toast('Wrong password','','error');return;}
   if(!nu||!np){toast('Fill all fields','','warning');return;}
   if(np!==cp){toast('Passwords do not match','','error');return;}
   if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Invalid email format','','error');return;}
-  appSettings.adminUser=nu;appSettings.adminPass=np;
+  appSettings.adminUser=nu;appSettings.adminPass=await hashPassword(np);
   if(email) appSettings.adminEmail=email;
   await commitSettings();toast('Updated!','Logging out.','success');
   setTimeout(()=>{localStorage.removeItem('cbt_user');location.reload();},1800);
@@ -3938,4 +3965,11 @@ Object.assign(window,{
 </script>
 
 </body>
-</html>
+</html>// ═══════════════════════════════════════
+(function setupOfflineDetection(){
+  const banner = document.getElementById('pwaOfflineBanner');
+  if(!banner) return;
+
+  function update(){
+    if(!navigator.onLine){
+   
