@@ -3596,9 +3596,12 @@ applyResponsiveLayouts();
 // 🔐 NEW: Verify activation FIRST
 await verifyActivation();
 
-// After verification, currentSchoolId is now trusted
+// Always load app settings — this loads devConfig from developerconfig
+// table so developer can login from ANY browser even without a school activated
+await loadAppSettings();
+
+// Only load full DB if a school is activated
 if(currentSchoolId){
-  await loadAppSettings();
   await loadDB();
 }
 
